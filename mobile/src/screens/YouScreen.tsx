@@ -1,14 +1,17 @@
-import React from "react";
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import React, { useEffect } from "react";
+import { Pressable, ScrollView, Switch, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { useProfile } from "../lib/profile";
 import { summarize } from "../lib/game/calibration";
 import { isProvisional, START_RATING } from "../lib/game/rating";
 import { skillTrend, insights, type Insight } from "../lib/game/progress";
+import { scheduleDailyReminder, cancelDailyReminder } from "../lib/notifications";
 import { C } from "../theme";
 
+const REMINDER_HOURS = [8, 12, 18, 21];
+
 export function YouScreen() {
-  const { profile: p } = useProfile();
+  const { profile: p, updateSettings } = useProfile();
   const { width } = useWindowDimensions();
   const calib = summarize(p.history.map((h) => ({ confidence: h.confidence, correct: h.correct })));
   const prov = isProvisional(p.gradedCount);
@@ -17,6 +20,14 @@ export function YouScreen() {
   const trend = skillTrend(p.history);
   const tips = insights(p.history);
   const trackW = Math.min(width, 440) - 40 - 40; // screen − page pad − card pad
+
+  useEffect(() => {
+    if (p.reminderEnabled) {
+      scheduleDailyReminder(p.reminderHour ?? 18, p.reminderMinute ?? 0).catch(() => {});
+    } else {
+      cancelDailyReminder().catch(() => {});
+    }
+  }, [p.reminderEnabled, p.reminderHour, p.reminderMinute]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
@@ -79,6 +90,33 @@ export function YouScreen() {
         <View style={{ gap: 8 }}>
           {tips.map((t, i) => <InsightCard key={i} tip={t} />)}
         </View>
+      </View>
+
+      <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 16 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: C.fg }}>🔔 Daily reminder</Text>
+            <Text style={{ marginTop: 4, fontSize: 12, lineHeight: 18, color: C.muted }}>A gentle nudge at your play time — streak freezes still protect you if you miss a day.</Text>
+          </View>
+          <Switch
+            value={p.reminderEnabled ?? false}
+            onValueChange={(v) => updateSettings({ reminderEnabled: v })}
+            trackColor={{ false: C.card2, true: C.accent }}
+          />
+        </View>
+        {p.reminderEnabled && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {REMINDER_HOURS.map((h) => {
+              const sel = (p.reminderHour ?? 18) === h;
+              return (
+                <Pressable key={h} onPress={() => updateSettings({ reminderHour: h, reminderMinute: 0 })}
+                  style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.12)" : C.card2 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: sel ? C.accent : C.fg }}>{h === 12 ? "12 pm" : h < 12 ? `${h} am` : `${h - 12} pm`}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 20, paddingVertical: 16, marginTop: 16 }}>

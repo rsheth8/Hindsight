@@ -39,6 +39,9 @@ export interface Profile {
   lastPlayedDate: string | null;
   streakFreezes: number;
   freezeWeekKey: string | null;
+  reminderEnabled: boolean;
+  reminderHour: number;
+  reminderMinute: number;
   history: JournalEntry[];
 }
 
@@ -53,6 +56,9 @@ export function emptyProfile(): Profile {
     lastPlayedDate: null,
     streakFreezes: FREEZES_PER_WEEK,
     freezeWeekKey: null,
+    reminderEnabled: false,
+    reminderHour: 18,
+    reminderMinute: 0,
     history: [],
   };
 }
@@ -66,6 +72,7 @@ interface Ctx {
   ready: boolean;
   record: (entry: JournalEntry) => Promise<void>;
   recordPractice: (entry: JournalEntry) => Promise<void>;
+  updateSettings: (patch: Partial<Pick<Profile, "reminderEnabled" | "reminderHour" | "reminderMinute">>) => Promise<void>;
 }
 
 const ProfileContext = createContext<Ctx | null>(null);
@@ -105,6 +112,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         lastPlayedDate: entry.date,
         streakFreezes: streakUpdate.streakFreezes,
         freezeWeekKey: streakUpdate.freezeWeekKey,
+        reminderEnabled: p.reminderEnabled ?? false,
+        reminderHour: p.reminderHour ?? 18,
+        reminderMinute: p.reminderMinute ?? 0,
         history: [entry, ...p.history].slice(0, 365),
       };
       AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
@@ -123,6 +133,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         lastPlayedDate: p.lastPlayedDate,
         streakFreezes: p.streakFreezes ?? FREEZES_PER_WEEK,
         freezeWeekKey: p.freezeWeekKey ?? null,
+        reminderEnabled: p.reminderEnabled ?? false,
+        reminderHour: p.reminderHour ?? 18,
+        reminderMinute: p.reminderMinute ?? 0,
         history: [entry, ...p.history].slice(0, 365),
       };
       AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
@@ -130,7 +143,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ profile, ready, record, recordPractice }), [profile, ready, record, recordPractice]);
+  const updateSettings = useCallback(async (patch: Partial<Pick<Profile, "reminderEnabled" | "reminderHour" | "reminderMinute">>) => {
+    setProfile((p) => {
+      const next = { ...p, ...patch };
+      AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const value = useMemo(() => ({ profile, ready, record, recordPractice, updateSettings }), [profile, ready, record, recordPractice, updateSettings]);
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
 

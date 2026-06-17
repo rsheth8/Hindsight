@@ -51,7 +51,14 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#5ef2b0"
+        }
+      ]
     ]
   }
 }
