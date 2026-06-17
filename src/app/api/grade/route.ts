@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDailyProblem } from "@/lib/game/daily";
 import { getPracticeProblem, type PracticeFocus } from "@/lib/game/practice";
+import { resolveBlindProblem } from "@/lib/game/blind-replay";
 import { brierFor } from "@/lib/game/calibration";
 import { updateRating } from "@/lib/game/rating";
 import { gradeReasoning, explainReveal, type Depth } from "@/lib/ai/grade";
@@ -19,13 +20,22 @@ interface Body {
   depth?: Depth;
   deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
+  blindReplay?: { seed: string; focus: PracticeFocus; visibleDays: number };
 }
 
 async function loadProblem(body: Body): Promise<SolvedProblem> {
+  if (body.blindReplay) {
+    return resolveBlindProblem(body.blindReplay.seed, body.blindReplay.focus, body.blindReplay.visibleDays);
+  }
   if (body.practice) {
     return getPracticeProblem(body.practice.seed, body.practice.focus);
   }
   return getDailyProblem();
+}
+
+function problemIdFor(body: Body, problem: SolvedProblem): string {
+  if (body.blindReplay) return `blind-${body.blindReplay.seed}`;
+  return problem.id;
 }
 
 export async function POST(req: Request) {
@@ -49,6 +59,7 @@ export async function POST(req: Request) {
 
   try {
     const problem = await loadProblem(body);
+    const pid = problemIdFor(body, problem);
     const correct = choice === problem.answer;
     const brier = brierFor(confidence, correct);
 
@@ -64,10 +75,10 @@ export async function POST(req: Request) {
       inputs: { correct, brier, reasoning: reasoningGrade.score },
     });
 
-    if (deviceId && deviceId !== "anonymous" && !body.practice) {
+    if (deviceId && deviceId !== "anonymous" && !body.practice && !body.blindReplay) {
       await saveSubmission({
         deviceId,
-        problemId: problem.id,
+        problemId: pid,
         problemDate: problem.date,
         choice,
         confidence,
@@ -78,7 +89,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const { crowd, crowdReal, sampleSize } = await crowdForProblem(problem.id, problem.crowd);
+    const { crowd, crowdReal, sampleSize } = await crowdForProblem(pid, problem.crowd);
 
     const result: GradeResult = {
       correct,

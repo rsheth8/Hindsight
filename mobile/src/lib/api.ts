@@ -25,6 +25,23 @@ export async function fetchPractice(seed: string, focus: PracticeFocus): Promise
   return data as DailyProblem;
 }
 
+export interface BlindReplayResponse {
+  problem: DailyProblem;
+  visibleDays: number;
+  maxDays: number;
+  stepDays: number;
+  canAdvance: boolean;
+}
+
+export async function fetchBlindReplay(seed: string, focus: PracticeFocus, visible: number): Promise<BlindReplayResponse> {
+  const q = new URLSearchParams({ seed, focus, visible: String(visible) });
+  const res = await fetch(`${API_BASE}/api/blind-replay?${q}`);
+  if (!res.ok) throw new Error(`blind ${res.status}`);
+  const data = await res.json();
+  if (data?.error) throw new Error(data.error);
+  return data as BlindReplayResponse;
+}
+
 export interface GradePayload {
   choice: "A" | "B" | "C";
   confidence: number;
@@ -34,6 +51,7 @@ export interface GradePayload {
   depth: Depth;
   deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
+  blindReplay?: { seed: string; focus: PracticeFocus; visibleDays: number };
 }
 
 export async function gradeSubmission(payload: GradePayload): Promise<GradeResult> {

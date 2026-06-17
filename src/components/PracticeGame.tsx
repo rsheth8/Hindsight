@@ -16,6 +16,7 @@ import {
 } from "@/lib/game/practice-focus";
 import { verdict, transferableSkill, type VerdictTone } from "@/lib/game/progress";
 import type { ChoiceId, DailyProblem, GradeResult } from "@/lib/game/types";
+import { BlindReplayGame } from "./BlindReplayGame";
 
 import type { Depth } from "@/lib/ai/grade";
 
@@ -32,6 +33,7 @@ function vibrate(ms: number | number[]) {
 export function PracticeGame() {
   const profile = useProfile();
   const focus = useMemo(() => derivePracticeFocus(profile.history), [profile.history]);
+  const [view, setView] = useState<"hub" | "read" | "blind">("hub");
   const [phase, setPhase] = useState<Phase>("hub");
   const [seed, setSeed] = useState(newSeed);
   const [problem, setProblem] = useState<DailyProblem | null>(null);
@@ -131,6 +133,8 @@ export function PracticeGame() {
     }
   }
 
+  if (view === "blind") return <BlindReplayGame onExit={() => setView("hub")} />;
+
   if (phase === "hub") {
     return (
       <div className="animate-rise">
@@ -145,6 +149,10 @@ export function PracticeGame() {
 
         <button type="button" onClick={() => loadProblem(newSeed(), focus)} className="btn-primary mt-5 w-full py-4 text-[16px]">
           Read the setup
+        </button>
+        <button type="button" onClick={() => setView("blind")} className="mt-3 w-full rounded-2xl border border-[var(--border)] py-4 text-[16px] font-semibold">
+          👁️ Blind replay
+          <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Reveal the chart week-by-week, then call it.</span>
         </button>
         {error && <p className="mt-3 text-center text-sm text-[var(--bad)]">{error}</p>}
 

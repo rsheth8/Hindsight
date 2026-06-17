@@ -35,7 +35,7 @@ function newSeed() {
   return `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function PracticeScreen() {
+export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }) {
   const { profile, ready, recordPractice } = useProfile();
   const { width } = useWindowDimensions();
   const chartW = Math.min(width, 440) - 40 - 8;
@@ -156,6 +156,16 @@ export function PracticeScreen() {
         >
           <Text style={{ fontWeight: "700", fontSize: 16, color: C.accentInk }}>Read the setup</Text>
         </Pressable>
+
+        {onBlindReplay && (
+          <Pressable
+            onPress={onBlindReplay}
+            style={{ marginTop: 10, borderRadius: 14, paddingVertical: 16, alignItems: "center", borderWidth: 1, borderColor: C.border, backgroundColor: C.card }}
+          >
+            <Text style={{ fontWeight: "700", fontSize: 16, color: C.fg }}>👁️ Blind replay</Text>
+            <Text style={{ marginTop: 4, fontSize: 12, color: C.muted }}>Reveal the chart week-by-week, then call it.</Text>
+          </Pressable>
+        )}
 
         {error && <Text style={{ marginTop: 12, textAlign: "center", fontSize: 13, color: C.bad }}>{error}</Text>}
 
