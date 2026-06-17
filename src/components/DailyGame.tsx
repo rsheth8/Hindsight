@@ -11,6 +11,7 @@ import { todayKey } from "@/lib/game/seed";
 import { buildReasoning, chipsForProblem, hasReasoning } from "@/lib/game/reasoning-chips";
 import { conceptsForProblem } from "@/lib/game/concepts";
 import { verdict, transferableSkill, type VerdictTone } from "@/lib/game/progress";
+import { getDeviceId } from "@/lib/device-id";
 import { COACH } from "@/lib/coach";
 import type { ChoiceId, DailyProblem, GradeResult } from "@/lib/game/types";
 import type { Depth } from "@/lib/ai/grade";
@@ -75,6 +76,7 @@ export function DailyGame() {
           rating: profile.rating,
           gradedCount: profile.gradedCount,
           depth,
+          deviceId: getDeviceId(),
         }),
       });
       const data: GradeResult & { error?: string } = await res.json();
@@ -382,7 +384,9 @@ function Reveal({
       <div className="card mt-4 px-4 py-4">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium">How players answered</span>
-          <span className="text-[10px] text-[var(--muted-2)]">illustrative*</span>
+          <span className="text-[10px] text-[var(--muted-2)]">
+            {result.crowdReal ? `real · n=${result.crowdSampleSize ?? "?"}` : "illustrative*"}
+          </span>
         </div>
         <div className="flex flex-col gap-2">
           {problem.choices.map((c) => {
@@ -434,7 +438,9 @@ function Reveal({
       </div>
 
       <p className="mt-4 text-center text-[11px] text-[var(--muted-2)]">
-        *Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem.
+        {result.crowdReal
+          ? `Crowd split from ${result.crowdSampleSize} real answers today.`
+          : "*Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem."}
       </p>
     </div>
   );

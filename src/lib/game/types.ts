@@ -45,6 +45,9 @@ export interface DailyProblem {
   difficulty: number;
   /** synthetic until we have real telemetry; share of players per choice */
   crowd: Record<ChoiceId, number>;
+  /** true when crowd is from real server-side submissions */
+  crowdReal?: boolean;
+  crowdSampleSize?: number;
   /** true when built from live FMP data, false when from the fallback bank */
   live: boolean;
 }
@@ -100,4 +103,6 @@ export interface GradeResult {
   explanation: string;
   reveal: SolvedProblem["reveal"];
   crowd: Record<ChoiceId, number>;
+  crowdReal?: boolean;
+  crowdSampleSize?: number;
 }

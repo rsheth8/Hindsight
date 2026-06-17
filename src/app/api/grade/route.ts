@@ -4,6 +4,7 @@ import { getPracticeProblem, type PracticeFocus } from "@/lib/game/practice";
 import { brierFor } from "@/lib/game/calibration";
 import { updateRating } from "@/lib/game/rating";
 import { gradeReasoning, explainReveal, type Depth } from "@/lib/ai/grade";
+import { crowdForProblem, saveSubmission } from "@/lib/db/submissions";
 import type { ChoiceId, GradeResult, SolvedProblem } from "@/lib/game/types";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ interface Body {
   rating: number;
   gradedCount: number;
   depth?: Depth;
+  deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
 }
 
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
   const rating = Number.isFinite(body.rating) ? body.rating : 1000;
   const gradedCount = Number.isFinite(body.gradedCount) ? body.gradedCount : 0;
   const depth: Depth = body.depth ?? "learn";
+  const deviceId = String(body.deviceId ?? "anonymous").slice(0, 64);
 
   try {
     const problem = await loadProblem(body);
@@ -61,6 +64,22 @@ export async function POST(req: Request) {
       inputs: { correct, brier, reasoning: reasoningGrade.score },
     });
 
+    if (deviceId && deviceId !== "anonymous" && !body.practice) {
+      await saveSubmission({
+        deviceId,
+        problemId: problem.id,
+        problemDate: problem.date,
+        choice,
+        confidence,
+        correct,
+        brier,
+        reasoningScore: reasoningGrade.score,
+        ratingDelta: update.delta,
+      });
+    }
+
+    const { crowd, crowdReal, sampleSize } = await crowdForProblem(problem.id, problem.crowd);
+
     const result: GradeResult = {
       correct,
       answer: problem.answer,
@@ -73,7 +92,9 @@ export async function POST(req: Request) {
       earned: update.earned,
       explanation,
       reveal: problem.reveal,
-      crowd: problem.crowd,
+      crowd,
+      crowdReal,
+      crowdSampleSize: sampleSize,
     };
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
   } catch (err) {

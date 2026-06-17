@@ -32,6 +32,7 @@ export interface GradePayload {
   rating: number;
   gradedCount: number;
   depth: Depth;
+  deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
 }
 

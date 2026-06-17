@@ -10,6 +10,7 @@ import { Confetti } from "../components/Confetti";
 import { ShareResultCard, shareRow } from "../components/ShareResultCard";
 import { useProfile, hasPlayed, type JournalEntry } from "../lib/profile";
 import { fetchDaily, gradeSubmission } from "../lib/api";
+import { getDeviceId } from "../lib/device-id";
 import { isProvisional } from "../lib/game/rating";
 import { buildReasoning, chipsForProblem, hasReasoning } from "../lib/game/reasoning-chips";
 import { conceptsForProblem } from "../lib/game/concepts";
@@ -71,6 +72,7 @@ export function DailyScreen() {
         rating: profile.rating,
         gradedCount: profile.gradedCount,
         depth,
+        deviceId: await getDeviceId(),
       });
       setResult(data);
       const entry: JournalEntry = {
@@ -344,7 +346,9 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 16 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
           <Text style={{ fontSize: 14, fontWeight: "500", color: C.fg }}>How players answered</Text>
-          <Text style={{ fontSize: 10, color: C.muted2 }}>illustrative*</Text>
+          <Text style={{ fontSize: 10, color: C.muted2 }}>
+            {result.crowdReal ? `real · n=${result.crowdSampleSize ?? "?"}` : "illustrative*"}
+          </Text>
         </View>
         <View style={{ gap: 8 }}>
           {problem.choices.map((c) => {
@@ -387,7 +391,9 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
         <Text style={{ fontWeight: "700", fontSize: 16, color: C.accentInk }}>Share result</Text>
       </Pressable>
       <Text style={{ marginTop: 16, textAlign: "center", fontSize: 11, color: C.muted2 }}>
-        *Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem.
+        {result.crowdReal
+          ? `Crowd split from ${result.crowdSampleSize} real answers today.`
+          : "*Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem."}
       </Text>
     </ScrollView>
   );
