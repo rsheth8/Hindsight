@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "http://localhost:3000"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://REPLACE-WITH-YOUR-DEPLOYED-API"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://REPLACE-WITH-YOUR-DEPLOYED-API"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "//": "Fill these in (or run `eas submit` interactively). Apple Developer Program membership required.",
+        "appleId": "REPLACE-WITH-APPLE-ID-EMAIL",
+        "ascAppId": "REPLACE-WITH-APP-STORE-CONNECT-APP-ID",
+        "appleTeamId": "REPLACE-WITH-APPLE-TEAM-ID"
+      }
+    }
+  }
+}

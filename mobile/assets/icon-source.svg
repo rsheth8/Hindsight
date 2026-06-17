@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161b25"/>
+      <stop offset="1" stop-color="#080a0e"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#3fd99a"/>
+      <stop offset="1" stop-color="#7dffc6"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="26" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- full-bleed background (iOS applies the rounded mask) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- faint baseline grid -->
+  <g stroke="#222a36" stroke-width="2">
+    <line x1="150" y1="360" x2="874" y2="360"/>
+    <line x1="150" y1="520" x2="874" y2="520"/>
+    <line x1="150" y1="680" x2="874" y2="680"/>
+  </g>
+
+  <!-- the signature dashed "decision line" -->
+  <line x1="560" y1="190" x2="560" y2="834" stroke="#6b788b" stroke-width="6" stroke-dasharray="14 18" opacity="0.8"/>
+
+  <!-- history leg: choppy, drifting up toward the decision line -->
+  <path d="M150 690 L214 654 L278 700 L342 612 L406 648 L470 560 L524 596 L560 540"
+        fill="none" stroke="#cdd6e3" stroke-width="22" stroke-linejoin="round" stroke-linecap="round" opacity="0.65"/>
+
+  <!-- forward leg: the surge past the line (brand payoff) -->
+  <path d="M560 540 L626 470 L690 506 L754 360 L818 250 L874 214"
+        fill="none" stroke="url(#spark)" stroke-width="40" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- decision point marker -->
+  <circle cx="560" cy="540" r="30" fill="#080a0e" stroke="#7dffc6" stroke-width="14"/>
+</svg>

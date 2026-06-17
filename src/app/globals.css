@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
+/* ── Hindsight theme ──────────────────────────────────────────────────────
+   Dark by default, one decisive accent, number-as-hero. Mobile-first. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0c11;
+  --bg-elev: #11151d;
+  --card: #161b25;
+  --card-2: #1d2430;
+  --border: #252d3a;
+  --fg: #eef2f7;
+  --muted: #9aa7ba;
+  --muted-2: #6b788b;
+
+  --accent: #5ef2b0; /* signal mint — "earned / good" */
+  --accent-dim: #2ea378;
+  --warn: #ffb454; /* caution — overconfidence */
+  --bad: #ff6b81; /* wrong / loss */
+  --up: #5ef2b0;
+  --down: #ff6b81;
+
+  --radius: 18px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* subtle top glow, compositor-cheap (no heavy WebGL — keep phones smooth) */
+  background-image: radial-gradient(120% 60% at 50% -10%, rgba(94, 242, 176, 0.08), transparent 60%);
+  background-attachment: fixed;
 }
+
+/* numbers feel mechanical / premium */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.hero-num {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+@keyframes countup-pop {
+  0% { transform: scale(0.96); opacity: 0.4; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: countup-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+@keyframes flip-in {
+  0% { transform: perspective(1000px) rotateX(85deg); opacity: 0; }
+  100% { transform: perspective(1000px) rotateX(0); opacity: 1; }
+}
+.animate-flip { animation: flip-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1); transform-origin: top center; }
+
+@keyframes rise {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-rise { animation: rise 0.4s ease both; }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(620deg); opacity: 0.9; }
+}
+
+/* range slider — the confidence dial, made to feel physical */
+input[type="range"].dial {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--card-2);
+  outline: none;
+}
+input[type="range"].dial::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 4px solid var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  transition: transform 0.08s ease;
+}
+input[type="range"].dial:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  cursor: grabbing;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #062013;
+  font-weight: 700;
+  border-radius: 14px;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.4; }
