@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { RankView } from "@/components/RankView";
 
 export default function RankPage() {
-  return <RankView />;
+  return (
+    <Suspense fallback={null}>
+      <RankView />
+    </Suspense>
+  );
 }

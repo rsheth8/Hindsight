@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useProfile } from "@/lib/profile/useProfile";
 import { conceptMastery } from "@/lib/game/concepts";
 import { personalBests, tierFromRating } from "@/lib/game/stats";
@@ -7,13 +8,15 @@ import { DuelView } from "./DuelView";
 
 export function RankView() {
   const p = useProfile();
-  const [duel, setDuel] = useState(false);
+  const searchParams = useSearchParams();
+  const joinCode = searchParams.get("duel");
+  const [duel, setDuel] = useState(Boolean(joinCode));
   const bests = personalBests(p.history, p.longestStreak);
   const tier = tierFromRating(p.rating);
   const tree = conceptMastery(p.history);
   const progress = Math.min(100, Math.max(0, Math.round(((p.rating - 1000) / (tier.next - 1000)) * 100)));
 
-  if (duel) return <DuelView onExit={() => setDuel(false)} />;
+  if (duel) return <DuelView initialJoinCode={joinCode} onExit={() => setDuel(false)} />;
 
   return (
     <div className="animate-rise">

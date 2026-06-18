@@ -9,6 +9,8 @@
  */
 import { buildProblemForSeed } from "./daily";
 import { gradeCall } from "@/lib/ai/grade-call";
+import { gradeReasoning } from "@/lib/ai/grade";
+import { publishMatchUpdated } from "@/lib/duel/realtime";
 import { botCall, isBotId, makeBot } from "./duel-bot";
 import {
   enqueue,
@@ -18,12 +20,15 @@ import {
   saveMatch,
 } from "@/lib/db/duel-store";
 import {
+  ARGUMENT_REBUTTAL_SECONDS,
   ASYNC_DEADLINE_MS,
   CLOCK_SECONDS,
   DUEL_MODES,
   forfeitGrade,
+  isExpired,
   isMatchOver,
   matchWinnerId,
+  modeHidesChart,
   resultFor,
   roundSeed,
   roundWinnerId,
@@ -55,6 +60,12 @@ function genId(): string {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/** Persist match state and ping Ably subscribers to re-fetch. */
+async function persistMatch(match: DuelMatch): Promise<void> {
+  await saveMatch(match);
+  void publishMatchUpdated(match.id);
 }
 
 function roundDeadline(tempo: DuelTempo, clock: DuelClock | null): string {
@@ -110,7 +121,7 @@ export async function createMatch(params: CreateParams): Promise<CreateResult> {
       const existing = await getMatch(opponent.matchId);
       if (existing && existing.state === "waiting_opponent" && existing.players[0]?.id !== player.id) {
         startMatch(existing, player);
-        await saveMatch(existing);
+        await persistMatch(existing);
         return { match: toPublic(existing, player.id), joined: true };
       }
       // stale queue entry → fall through and create a fresh waiting match
@@ -132,7 +143,7 @@ export async function createMatch(params: CreateParams): Promise<CreateResult> {
     updatedAt: nowIso(),
     ...(kind === "friend" ? { challengeCode: id } : {}),
   };
-  await saveMatch(match);
+  await persistMatch(match);
   if (kind === "queue") {
     await enqueue({
       matchId: id,
@@ -154,7 +165,7 @@ export async function joinMatch(matchId: string, player: PlayerSlot): Promise<Pu
 
   // Re-joining your own match (e.g. reconnect) just returns current state.
   if (match.players.some((p) => p.id === player.id)) {
-    if (await progressMatch(match)) await saveMatch(match);
+    if (await progressMatch(match)) await persistMatch(match);
     return toPublic(match, player.id);
   }
   if (match.state !== "waiting_opponent" || match.players.length >= 2) {
@@ -163,7 +174,7 @@ export async function joinMatch(matchId: string, player: PlayerSlot): Promise<Pu
 
   startMatch(match, player);
   await removeFromQueue((e) => e.matchId === matchId);
-  await saveMatch(match);
+  await persistMatch(match);
   return toPublic(match, player.id);
 }
 
@@ -181,7 +192,7 @@ export interface CommitInput {
   reasoning: string;
 }
 
-/** Lock in a call. Grades it, and resolves the round/match once both have locked. */
+/** Lock in a call. Grades it (except Argument Arena commit phase), resolves when ready. */
 export async function commit(matchId: string, playerId: string, input: CommitInput): Promise<PublicDuelMatch> {
   let match = await getMatch(matchId);
   if (!match) throw new DuelError("Match not found", 404);
@@ -189,32 +200,67 @@ export async function commit(matchId: string, playerId: string, input: CommitInp
 
   match = applyExpiry(match);
   if (match.state !== "round_active") {
-    await saveMatch(match);
+    await persistMatch(match);
     throw new DuelError("This round is closed", 409);
   }
 
   const round = match.rounds[match.currentRound];
+  if (round.phase === "rebuttal") {
+    await persistMatch(match);
+    throw new DuelError("Commit phase is over — add your rebuttal", 409);
+  }
   if (round.commits[playerId]) throw new DuelError("You've already locked in", 409);
 
   const problem = await buildProblemForSeed(round.seed);
-  const grade = await gradeCall({ problem, choice: input.choice, confidence: input.confidence, reasoning: input.reasoning });
-
   round.commits[playerId] = {
     choice: input.choice,
     confidence: input.confidence,
     reasoning: input.reasoning,
     lockedAt: nowIso(),
   };
-  round.grades = { ...round.grades, [playerId]: grade };
 
-  // A bot opponent locks in here too (same board, same grader), so the round
-  // resolves the instant the human commits instead of waiting on a poll.
-  await ensureBotMoves(match, problem);
+  if (match.mode !== "argument-arena") {
+    const grade = await gradeCall({ problem, choice: input.choice, confidence: input.confidence, reasoning: input.reasoning });
+    round.grades = { ...round.grades, [playerId]: grade };
+  }
 
-  const everyoneIn = match.players.length >= 2 && match.players.every((p) => round.grades?.[p.id]);
-  if (everyoneIn && match.state === "round_active") finalizeRound(match, problem);
+  await ensureBotProgress(match, problem);
 
-  await saveMatch(match);
+  if (match.mode === "argument-arena") {
+    if (allPlayersCommitted(match, round)) {
+      await startRebuttalPhase(match);
+      await ensureBotProgress(match, problem);
+    }
+    await resolveRoundIfReady(match, problem);
+  } else if (allPlayersGraded(match, round) && match.state === "round_active") {
+    finalizeRound(match, problem);
+  }
+
+  await persistMatch(match);
+  return toPublic(match, playerId);
+}
+
+/** Argument Arena — 30s rebuttal after both players lock in. */
+export async function submitRebuttal(matchId: string, playerId: string, text: string): Promise<PublicDuelMatch> {
+  let match = await getMatch(matchId);
+  if (!match) throw new DuelError("Match not found", 404);
+  if (!match.players.some((p) => p.id === playerId)) throw new DuelError("You're not in this match", 403);
+  if (match.mode !== "argument-arena") throw new DuelError("Rebuttals are only for Argument Arena", 409);
+
+  match = applyExpiry(match);
+  const round = match.rounds[match.currentRound];
+  if (match.state !== "round_active" || round.phase !== "rebuttal") {
+    await persistMatch(match);
+    throw new DuelError("No rebuttal window open", 409);
+  }
+  if (!round.commits[playerId]) throw new DuelError("Lock in your call first", 409);
+  if (round.rebuttals?.[playerId] !== undefined) throw new DuelError("Rebuttal already submitted", 409);
+
+  round.rebuttals = { ...round.rebuttals, [playerId]: String(text ?? "").trim().slice(0, 280) };
+  const problem = await buildProblemForSeed(round.seed);
+  await ensureBotProgress(match, problem);
+  await resolveRoundIfReady(match, problem);
+  await persistMatch(match);
   return toPublic(match, playerId);
 }
 
@@ -236,7 +282,7 @@ export async function forfeit(matchId: string, playerId: string): Promise<Public
   } else {
     match.state = "abandoned";
   }
-  await saveMatch(match);
+  await persistMatch(match);
   return toPublic(match, playerId);
 }
 
@@ -244,7 +290,7 @@ export async function forfeit(matchId: string, playerId: string): Promise<Public
 export async function viewMatch(matchId: string, viewerId: string): Promise<PublicDuelMatch> {
   const match = await getMatch(matchId);
   if (!match) throw new DuelError("Match not found", 404);
-  if (await progressMatch(match)) await saveMatch(match);
+  if (await progressMatch(match)) await persistMatch(match);
   return toPublic(match, viewerId);
 }
 
@@ -261,7 +307,7 @@ export async function currentProblem(
   const problem = await buildProblemForSeed(round.seed);
   // Let a bot lock in for this (possibly new) round; won't finalize since the
   // viewer hasn't committed yet, but means they won't wait a poll for it.
-  if (await ensureBotMoves(match, problem)) await saveMatch(match);
+  if (await ensureBotProgress(match, problem)) await persistMatch(match);
   return { problem: toClientProblem(problem), round: round.index, deadlineAt: round.deadlineAt };
 }
 
@@ -281,9 +327,18 @@ function applyExpiry(match: DuelMatch): DuelMatch {
 
   if (match.state !== "round_active") return match;
   const round = match.rounds[match.currentRound];
-  if (!round?.deadlineAt || Date.parse(round.deadlineAt) >= now) return match;
+  if (!round) return match;
 
-  const missing = match.players.filter((p) => !round.grades?.[p.id]);
+  // Argument Arena rebuttal window expiry is resolved async in progressMatch.
+  if (round.phase === "rebuttal" && round.rebuttalDeadlineAt && isExpired(round.rebuttalDeadlineAt)) {
+    return match;
+  }
+
+  if (!round.deadlineAt || Date.parse(round.deadlineAt) >= now) return match;
+
+  const missing = match.players.filter((p) =>
+    match.mode === "argument-arena" ? !round.commits[p.id] : !round.grades?.[p.id],
+  );
 
   // Hybrid grace: a live clock that ran out converts to an async deadline once,
   // so a dropped/slow opponent doesn't instantly forfeit.
@@ -293,7 +348,9 @@ function applyExpiry(match: DuelMatch): DuelMatch {
     return match;
   }
 
-  const committed = match.players.filter((p) => round.grades?.[p.id]);
+  const committed = match.players.filter((p) =>
+    match.mode === "argument-arena" ? round.commits[p.id] : round.grades?.[p.id],
+  );
   if (committed.length === 0) {
     match.state = "abandoned";
     return match;
@@ -314,9 +371,86 @@ function progressSig(match: DuelMatch): string {
     match.players.length,
     match.currentRound,
     round?.state,
+    round?.phase,
     round?.deadlineAt,
+    round?.rebuttalDeadlineAt,
+    Object.keys(round?.commits ?? {}).length,
     Object.keys(round?.grades ?? {}).length,
+    Object.keys(round?.rebuttals ?? {}).length,
   ].join("|");
+}
+
+function allPlayersCommitted(match: DuelMatch, round: DuelRound): boolean {
+  return match.players.length >= 2 && match.players.every((p) => Boolean(round.commits[p.id]));
+}
+
+function allPlayersGraded(match: DuelMatch, round: DuelRound): boolean {
+  return match.players.length >= 2 && match.players.every((p) => Boolean(round.grades?.[p.id]));
+}
+
+function allRebuttalsIn(match: DuelMatch, round: DuelRound): boolean {
+  return match.players.every((p) => round.rebuttals?.[p.id] !== undefined);
+}
+
+async function startRebuttalPhase(match: DuelMatch): Promise<void> {
+  const round = match.rounds[match.currentRound];
+  round.phase = "rebuttal";
+  round.rebuttalDeadlineAt = new Date(Date.now() + ARGUMENT_REBUTTAL_SECONDS * 1000).toISOString();
+}
+
+async function resolveRoundIfReady(match: DuelMatch, problem?: SolvedProblem): Promise<void> {
+  const round = match.rounds[match.currentRound];
+  if (match.state !== "round_active") return;
+
+  if (match.mode === "argument-arena") {
+    if (round.phase !== "rebuttal") return;
+    const expired = round.rebuttalDeadlineAt && isExpired(round.rebuttalDeadlineAt);
+    if (!allRebuttalsIn(match, round) && !expired) return;
+
+    const solved = problem ?? (await buildProblemForSeed(round.seed));
+    for (const p of match.players) {
+      if (round.rebuttals?.[p.id] === undefined) {
+        round.rebuttals = { ...round.rebuttals, [p.id]: "" };
+      }
+      const c = round.commits[p.id];
+      if (!c) {
+        round.grades = { ...round.grades, [p.id]: forfeitGrade() };
+        continue;
+      }
+      const commitGrade = await gradeCall({
+        problem: solved,
+        choice: c.choice,
+        confidence: c.confidence,
+        reasoning: c.reasoning,
+      });
+      const rebText = round.rebuttals[p.id] ?? "";
+      let rebScore = 0;
+      let rebNotes = "";
+      if (rebText.trim()) {
+        const r = await gradeReasoning({
+          reasoning: rebText,
+          problem: solved,
+          choice: c.choice,
+          confidence: c.confidence,
+        });
+        rebScore = r.score;
+        rebNotes = r.notes;
+      }
+      const blended = +(0.7 * commitGrade.score + 0.3 * rebScore).toFixed(3);
+      round.grades = {
+        ...round.grades,
+        [p.id]: {
+          ...commitGrade,
+          score: blended,
+          reasoningNotes: rebNotes ? `${commitGrade.reasoningNotes} · Rebuttal: ${rebNotes}` : commitGrade.reasoningNotes,
+        },
+      };
+    }
+    finalizeRound(match, solved);
+    return;
+  }
+
+  if (allPlayersGraded(match, round)) finalizeRound(match, problem);
 }
 
 /** Fill a stale queue lobby with an AI opponent so the player never waits forever. */
@@ -331,29 +465,44 @@ async function botFillIfDue(match: DuelMatch): Promise<void> {
   await removeFromQueue((e) => e.matchId === match.id);
 }
 
-/** Make any bot in the active round lock in. Returns the built problem (for reveal). */
-async function ensureBotMoves(match: DuelMatch, problem?: SolvedProblem): Promise<SolvedProblem | undefined> {
+/** Bot commits + rebuttals for the current round phase. */
+async function ensureBotProgress(match: DuelMatch, problem?: SolvedProblem): Promise<SolvedProblem | undefined> {
   if (match.state !== "round_active") return problem;
   const round = match.rounds[match.currentRound];
-  const bots = match.players.filter((p) => isBotId(p.id) && !round.grades?.[p.id]);
-  if (bots.length === 0) return problem;
-
   const solved = problem ?? (await buildProblemForSeed(round.seed));
+
+  if (match.mode === "argument-arena" && round.phase === "rebuttal") {
+    const bots = match.players.filter(
+      (p) => isBotId(p.id) && round.commits[p.id] && round.rebuttals?.[p.id] === undefined,
+    );
+    for (const bot of bots) {
+      const call = round.commits[bot.id]!;
+      round.rebuttals = {
+        ...round.rebuttals,
+        [bot.id]: `Counter: ${call.reasoning.split(".").pop()?.trim() || "The setup still supports my read."}`,
+      };
+    }
+    return solved;
+  }
+
+  const bots = match.players.filter((p) => isBotId(p.id) && !round.commits[p.id]);
   for (const bot of bots) {
     const call = botCall(solved, bot.duelRating, `${round.seed}:${bot.id}`);
-    const grade = await gradeCall({
-      problem: solved,
-      choice: call.choice,
-      confidence: call.confidence,
-      reasoning: call.reasoning,
-    });
     round.commits[bot.id] = {
       choice: call.choice,
       confidence: call.confidence,
       reasoning: call.reasoning,
       lockedAt: nowIso(),
     };
-    round.grades = { ...round.grades, [bot.id]: grade };
+    if (match.mode !== "argument-arena") {
+      const grade = await gradeCall({
+        problem: solved,
+        choice: call.choice,
+        confidence: call.confidence,
+        reasoning: call.reasoning,
+      });
+      round.grades = { ...round.grades, [bot.id]: grade };
+    }
   }
   return solved;
 }
@@ -367,10 +516,14 @@ async function progressMatch(match: DuelMatch): Promise<boolean> {
   const before = progressSig(match);
   applyExpiry(match);
   await botFillIfDue(match);
-  const solved = await ensureBotMoves(match);
+  const solved = await ensureBotProgress(match);
   if (match.state === "round_active") {
     const round = match.rounds[match.currentRound];
-    if (match.players.length >= 2 && match.players.every((p) => round.grades?.[p.id])) {
+    if (match.mode === "argument-arena") {
+      if (round.phase !== "rebuttal" && allPlayersCommitted(match, round)) await startRebuttalPhase(match);
+      await ensureBotProgress(match, solved);
+      await resolveRoundIfReady(match, solved);
+    } else if (allPlayersGraded(match, round)) {
       finalizeRound(match, solved);
     }
   }
@@ -433,10 +586,14 @@ function bestEffortGrade(): RoundGrade {
 export interface PublicRound {
   index: number;
   state: "active" | "complete";
+  phase?: "commit" | "rebuttal";
   deadlineAt?: string;
+  rebuttalDeadlineAt?: string;
   convertedToAsync?: boolean;
   youCommitted: boolean;
   opponentCommitted: boolean;
+  youRebutted?: boolean;
+  opponentRebutted?: boolean;
   winnerId?: string | null;
   /** present only once the round is complete */
   grades?: Record<string, RoundGrade>;
@@ -463,6 +620,8 @@ export interface PublicDuelMatch {
   rounds: PublicRound[];
   winnerId?: string | null;
   challengeCode?: string;
+  /** Blind Bid — chart hidden until both lock in */
+  hideChart?: boolean;
   /** echoes the viewer so the client can split you / opponent */
   you: string;
 }
@@ -479,10 +638,14 @@ export function toPublic(match: DuelMatch, viewerId: string): PublicDuelMatch {
     return {
       index: r.index,
       state: r.state,
+      phase: r.phase,
       deadlineAt: r.deadlineAt,
+      rebuttalDeadlineAt: r.rebuttalDeadlineAt,
       convertedToAsync: r.convertedToAsync,
       youCommitted: Boolean(r.commits[viewerId]),
       opponentCommitted: opponentIds.some((id) => Boolean(r.commits[id])),
+      youRebutted: r.rebuttals?.[viewerId] !== undefined,
+      opponentRebutted: opponentId ? r.rebuttals?.[opponentId] !== undefined : false,
       winnerId: complete ? r.winnerId : undefined,
       grades: complete ? r.grades : undefined,
       yourReasoning: yourCommit?.reasoning,
@@ -507,6 +670,7 @@ export function toPublic(match: DuelMatch, viewerId: string): PublicDuelMatch {
     rounds,
     winnerId: match.winnerId,
     challengeCode: match.challengeCode,
+    hideChart: modeHidesChart(match.mode),
     you: viewerId,
   };
 }

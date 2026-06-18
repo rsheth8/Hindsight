@@ -6,7 +6,7 @@
 import { API_BASE } from "../api";
 import type { ChoiceId, DailyProblem } from "../game/types";
 import type { DuelClock, DuelMode, DuelTempo } from "../game/duel";
-import type { CreateResult, PublicDuelMatch } from "./types";
+import type { CreateResult, DuelRealtimeConfig, PublicDuelMatch } from "./types";
 
 async function readJson(res: Response) {
   const data = await res.json().catch(() => ({}));
@@ -51,6 +51,21 @@ export async function joinDuel(matchId: string, identity: DuelIdentity): Promise
     body: JSON.stringify(identity),
   });
   return (await readJson(res)) as PublicDuelMatch;
+}
+
+export async function submitDuelRebuttal(matchId: string, deviceId: string, text: string): Promise<PublicDuelMatch> {
+  const res = await fetch(`${API_BASE}/api/duel/match/${matchId}/rebuttal`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ deviceId, text }),
+  });
+  return (await readJson(res)) as PublicDuelMatch;
+}
+
+export async function getDuelRealtime(matchId: string, deviceId: string): Promise<DuelRealtimeConfig> {
+  const q = new URLSearchParams({ matchId, deviceId });
+  const res = await fetch(`${API_BASE}/api/duel/realtime?${q}`);
+  return (await readJson(res)) as DuelRealtimeConfig;
 }
 
 export async function getDuel(matchId: string, deviceId: string): Promise<PublicDuelMatch> {

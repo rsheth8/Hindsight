@@ -21,12 +21,14 @@ import {
   type RoundGrade,
 } from "../lib/game/duel";
 import { createDuel, joinDuel, getDuelProblem, type DuelIdentity } from "../lib/duel/api";
+import { duelChallengeText, duelShareText } from "../lib/duel/share";
+import type { DuelPresenceStatus } from "../lib/duel/presence";
 import { useDuelMatch } from "../lib/duel/useDuelMatch";
 import type { PublicDuelMatch } from "../lib/duel/types";
 import type { ChoiceId, Choice, DailyProblem } from "../lib/game/types";
 import { C } from "../theme";
 
-const MODES: DuelMode[] = ["same-board", "best-of-3"];
+const MODES: DuelMode[] = ["same-board", "best-of-3", "blind-bid", "argument-arena"];
 const TEMPOS: { id: DuelTempo; label: string; sub: string }[] = [
   { id: "live", label: "Live", sub: "Both in the room" },
   { id: "hybrid", label: "Auto", sub: "Live, falls back to async" },
@@ -34,7 +36,7 @@ const TEMPOS: { id: DuelTempo; label: string; sub: string }[] = [
 ];
 const CLOCKS: DuelClock[] = ["blitz", "rapid", "deep"];
 
-export function DuelScreen({ onExit }: { onExit: () => void }) {
+export function DuelScreen({ onExit, initialJoinCode }: { onExit: () => void; initialJoinCode?: string | null }) {
   const { profile, recordDuel } = useProfile();
   const { width } = useWindowDimensions();
   const chartW = Math.max(280, Math.min(width, 440) - 48);
@@ -53,7 +55,11 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
     [deviceId, myName, profile.duelRating, profile.duelMatchesPlayed],
   );
 
-  const { match, setMatch, error, setError, busy, commit, forfeit, clear } = useDuelMatch(deviceId);
+  const { match, setMatch, error, setError, busy, opponentPresence, commit, submitRebuttal, forfeit, clear } = useDuelMatch(deviceId);
+
+  const lastLobby = useRef({ mode: "same-board" as DuelMode, tempo: "live" as DuelTempo, clock: "rapid" as DuelClock, kind: "queue" as "queue" | "friend" });
+  const [rebuttalText, setRebuttalText] = useState("");
+  const [dismissedRound, setDismissedRound] = useState(-1);
 
   // lobby selections
   const [mode, setMode] = useState<DuelMode>("same-board");
@@ -74,6 +80,20 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
   const opponent = match?.players.find((p) => p.id !== match?.you) ?? null;
   const round = match ? match.rounds[match.currentRound] : null;
   const youCommitted = round?.youCommitted ?? false;
+  const inRebuttal = round?.phase === "rebuttal";
+  const hideChart = Boolean(match?.hideChart && round && !(round.youCommitted && round.opponentCommitted));
+
+  useEffect(() => {
+    const code = initialJoinCode?.trim();
+    if (!code || !deviceId || match) return;
+    let cancelled = false;
+    setCreating(true);
+    joinDuel(code, identity)
+      .then((m) => { if (!cancelled) setMatch(m); })
+      .catch(() => !cancelled && setError("Could not join that match."))
+      .finally(() => !cancelled && setCreating(false));
+    return () => { cancelled = true; };
+  }, [initialJoinCode, deviceId, match, identity, setMatch, setError]);
 
   // Fetch the round's problem when a new active round starts.
   useEffect(() => {
@@ -116,6 +136,7 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
       setCreating(true);
       setError(null);
       recordedRef.current = false;
+      lastLobby.current = { mode, tempo, clock, kind };
       try {
         const { match: m } = await createDuel({
           mode,
@@ -149,8 +170,28 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
     clear();
     setProblem(null);
     setLoadedRound(-1);
+    setRebuttalText("");
+    setDismissedRound(-1);
     recordedRef.current = false;
   }, [clear]);
+
+  const rematch = useCallback(async () => {
+    const { mode: m, tempo: t, clock: c, kind } = lastLobby.current;
+    leave();
+    setMode(m);
+    setTempo(t);
+    setClock(c);
+    setCreating(true);
+    setError(null);
+    try {
+      const { match: nm } = await createDuel({ mode: m, tempo: t, clock: t === "async" ? null : c, rated: true, kind, identity });
+      setMatch(nm);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not rematch");
+    } finally {
+      setCreating(false);
+    }
+  }, [identity, leave, setMatch, setError]);
 
   // ── routing ──
   if (!match) {
@@ -173,7 +214,7 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
   }
 
   if (match.state === "match_end") {
-    return <DuelReveal match={match} you={you} opponent={opponent} problem={problem} chartW={chartW} onRematch={() => { leave(); }} onExit={onExit} />;
+    return <DuelReveal match={match} you={you} opponent={opponent} problem={problem} chartW={chartW} onRematch={rematch} onExit={onExit} />;
   }
 
   if (match.state === "abandoned") {
@@ -190,9 +231,41 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
     return <Waiting match={match} onCancel={() => { void forfeit(); leave(); }} onExit={onExit} />;
   }
 
+  const prevRound = match.currentRound > 0 ? match.rounds[match.currentRound - 1] : null;
+  if (match.roundsTotal > 1 && match.state === "round_active" && prevRound?.state === "complete" && match.currentRound > dismissedRound) {
+    return (
+      <Centered>
+        <Text style={{ fontSize: 18, fontWeight: "700", color: C.fg }}>Round {prevRound.index + 1} complete</Text>
+        <Text style={{ marginTop: 8, textAlign: "center", fontSize: 13, color: C.muted, paddingHorizontal: 24 }}>
+          {prevRound.winnerId == null ? "Draw" : prevRound.winnerId === match.you ? "You won the round" : "They won the round"} — next setup loads now.
+        </Text>
+        <PrimaryButton label="Continue" onPress={() => setDismissedRound(match.currentRound)} />
+      </Centered>
+    );
+  }
+
+  if (inRebuttal && !round?.youRebutted) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        <MatchHeader match={match} you={you} opponent={opponent} onExit={onExit} />
+        <RoundClock deadlineAt={round?.rebuttalDeadlineAt} />
+        <Text style={{ marginTop: 16, fontSize: 15, fontWeight: "600", color: C.fg }}>Counter their read — 30 seconds</Text>
+        <Text style={{ marginTop: 4, fontSize: 13, color: C.muted }}>Your call is locked. Add a short rebuttal (70% read + 30% counter).</Text>
+        <TextInput value={rebuttalText} onChangeText={setRebuttalText} multiline
+          placeholder="Why your read still holds…"
+          placeholderTextColor={C.muted2}
+          style={{ marginTop: 16, minHeight: 100, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.fg, textAlignVertical: "top" }} />
+        <Pressable disabled={busy || !rebuttalText.trim()} onPress={() => submitRebuttal(rebuttalText)}
+          style={{ marginTop: 16, borderRadius: 14, paddingVertical: 16, alignItems: "center", backgroundColor: C.accent, opacity: busy || !rebuttalText.trim() ? 0.4 : 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: C.accentInk }}>{busy ? "Submitting…" : "Submit rebuttal"}</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
   // round_active
   if (youCommitted) {
-    return <WaitingForOpponent match={match} opponent={opponent} onExit={onExit} />;
+    return <WaitingForOpponent match={match} opponent={opponent} opponentPresence={opponentPresence} onExit={onExit} />;
   }
 
   if (!problem) return <Centered><ActivityIndicator color={C.accent} size="large" /></Centered>;
@@ -203,9 +276,16 @@ export function DuelScreen({ onExit }: { onExit: () => void }) {
       <RoundClock deadlineAt={round?.deadlineAt} converted={round?.convertedToAsync} />
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 14 }}>
-        <View style={{ paddingHorizontal: 4, paddingTop: 12, alignItems: "center" }}>
-          <SparkChart series={problem.series} width={chartW} />
-        </View>
+        {hideChart ? (
+          <View style={{ height: 200, alignItems: "center", justifyContent: "center", backgroundColor: C.card2, paddingHorizontal: 24 }}>
+            <Text style={{ fontSize: 32 }}>🙈</Text>
+            <Text style={{ marginTop: 8, fontSize: 13, color: C.muted, textAlign: "center" }}>Chart hidden until both lock in — metrics only for now.</Text>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 4, paddingTop: 12, alignItems: "center" }}>
+            <SparkChart series={problem.series} width={chartW} />
+          </View>
+        )}
         <View style={{ flexDirection: "row", flexWrap: "wrap", borderTopWidth: 1, borderTopColor: C.border }}>
           {problem.metrics.map((m, i) => (
             <View key={m.label} style={{ width: "50%", paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: i > 1 ? 1 : 0, borderRightWidth: i % 2 === 0 ? 1 : 0, borderColor: C.border }}>
@@ -372,7 +452,7 @@ function Waiting({ match, onCancel, onExit }: { match: PublicDuelMatch; onCancel
   const isFriend = Boolean(match.challengeCode);
   async function share() {
     try {
-      await Share.share({ message: `I challenged you to a ${match.modeName} duel on Hindsight. Join code: ${match.challengeCode}` });
+      await Share.share({ message: duelChallengeText(match.challengeCode ?? match.id, match.modeName) });
     } catch { /* cancelled */ }
   }
   return (
@@ -399,7 +479,7 @@ function Waiting({ match, onCancel, onExit }: { match: PublicDuelMatch; onCancel
   );
 }
 
-function WaitingForOpponent({ match, opponent, onExit }: { match: PublicDuelMatch; opponent: PlayerSlot | null; onExit: () => void }) {
+function WaitingForOpponent({ match, opponent, opponentPresence, onExit }: { match: PublicDuelMatch; opponent: PlayerSlot | null; opponentPresence?: DuelPresenceStatus | null; onExit: () => void }) {
   return (
     <Centered>
       <Text style={{ fontSize: 40 }}>🔒</Text>
@@ -409,7 +489,7 @@ function WaitingForOpponent({ match, opponent, onExit }: { match: PublicDuelMatc
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16 }}>
         <ActivityIndicator color={C.accent} />
-        <Text style={{ fontSize: 13, color: C.muted2 }}>{opponent?.name ?? "Opponent"} is thinking</Text>
+        <Text style={{ fontSize: 13, color: C.muted2 }}>{presenceLabel(opponentPresence, opponent?.name)}</Text>
       </View>
       <Text style={{ marginTop: 18, fontSize: 12, color: C.muted2 }}>Round {match.currentRound + 1} of {match.roundsTotal}</Text>
       <Pressable onPress={onExit} style={{ marginTop: 24 }}><Text style={{ color: C.muted2, fontSize: 12 }}>Back to Rank</Text></Pressable>
@@ -540,7 +620,25 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
         </View>
       )}
 
-      <PrimaryButton label="New duel" onPress={onRematch} />
+      <PrimaryButton label="Rematch" onPress={onRematch} />
+      <Pressable
+        onPress={async () => {
+          const text = duelShareText({
+            won,
+            draw,
+            delta,
+            ratingAfter: you?.duelRatingAfter ?? 0,
+            opponentName: oppName.replace(" 🤖", ""),
+            modeName: match.modeName,
+            yourScore: yg?.score,
+            oppScore: og?.score,
+          });
+          await Share.share({ message: text });
+        }}
+        style={{ marginTop: 10, alignItems: "center" }}
+      >
+        <Text style={{ fontWeight: "700", fontSize: 15, color: C.fg }}>Share result</Text>
+      </Pressable>
       <Pressable onPress={onExit} style={{ marginTop: 12, alignItems: "center" }}><Text style={{ color: C.muted2, fontSize: 13 }}>Back to Rank</Text></Pressable>
     </ScrollView>
   );
@@ -651,6 +749,12 @@ function confColor(c: number) {
   return C.accent;
 }
 
+function presenceLabel(status: DuelPresenceStatus | null | undefined, name?: string): string {
+  const who = name ?? "Opponent";
+  if (status === "locked") return `${who} locked in 🔒`;
+  if (status === "disconnected") return `${who} disconnected`;
+  return `${who} is thinking…`;
+}
 function edgeColor(edge: DuelEdge) {
   return edge === "you" ? C.accent : edge === "opponent" ? C.bad : C.muted2;
 }

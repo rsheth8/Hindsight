@@ -13,7 +13,11 @@
  */
 import type { ChoiceId, SolvedProblem } from "./types";
 
-export type DuelMode = "same-board" | "best-of-3";
+export type DuelMode = "same-board" | "best-of-3" | "blind-bid" | "argument-arena";
+export type RoundPhase = "commit" | "rebuttal";
+
+/** Rebuttal window in Argument Arena (live). */
+export const ARGUMENT_REBUTTAL_SECONDS = 30;
 export type DuelTempo = "live" | "async" | "hybrid";
 export type DuelClock = "blitz" | "rapid" | "deep";
 
@@ -55,6 +59,28 @@ export const DUEL_MODES: Record<DuelMode, DuelModeMeta> = {
     emoji: "🎯",
     rounds: 3,
     winsNeeded: 2,
+    defaultTempo: "live",
+    defaultClock: "rapid",
+    ranked: true,
+  },
+  "blind-bid": {
+    id: "blind-bid",
+    name: "Blind Bid",
+    blurb: "Metrics only — the chart stays hidden until both lock in.",
+    emoji: "🙈",
+    rounds: 1,
+    winsNeeded: 1,
+    defaultTempo: "live",
+    defaultClock: "rapid",
+    ranked: true,
+  },
+  "argument-arena": {
+    id: "argument-arena",
+    name: "Argument Arena",
+    blurb: "Lock your call, then a 30s rebuttal. 70% read + 30% counter.",
+    emoji: "🗣️",
+    rounds: 1,
+    winsNeeded: 1,
     defaultTempo: "live",
     defaultClock: "rapid",
     ranked: true,
@@ -118,6 +144,10 @@ export interface DuelRound {
   deadlineAt?: string;
   /** hybrid: a live round whose clock expired and was extended to an async deadline */
   convertedToAsync?: boolean;
+  /** Argument Arena: commit → rebuttal before grades finalize */
+  phase?: RoundPhase;
+  rebuttals?: Record<string, string>;
+  rebuttalDeadlineAt?: string;
   commits: Record<string, HiddenCommit>;
   grades?: Record<string, RoundGrade>;
   /** id of round winner; null = draw; undefined = not decided */
@@ -279,6 +309,11 @@ export function forfeitGrade(): RoundGrade {
 
 export function roundSeed(matchId: string, roundIndex: number): string {
   return `duel-${matchId}-r${roundIndex}`;
+}
+
+/** Blind Bid hides the price chart until both players have locked in. */
+export function modeHidesChart(mode: DuelMode): boolean {
+  return mode === "blind-bid";
 }
 
 /* ------------------------------------------------------------------ */

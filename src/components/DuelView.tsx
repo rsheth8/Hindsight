@@ -18,11 +18,13 @@ import {
   type RoundGrade,
 } from "@/lib/game/duel";
 import { createDuel, joinDuel, getDuelProblem, type DuelIdentity } from "@/lib/duel/client";
+import { duelChallengeText, duelJoinUrl, duelShareText } from "@/lib/duel/share";
+import type { DuelPresenceStatus } from "@/lib/duel/presence";
 import { useDuelMatch } from "@/lib/duel/useDuelMatch";
 import type { PublicDuelMatch } from "@/lib/duel/types";
 import type { ChoiceId, Choice, DailyProblem } from "@/lib/game/types";
 
-const MODES: DuelMode[] = ["same-board", "best-of-3"];
+const MODES: DuelMode[] = ["same-board", "best-of-3", "blind-bid", "argument-arena"];
 const TEMPOS: { id: DuelTempo; label: string; sub: string }[] = [
   { id: "live", label: "Live", sub: "Both in the room" },
   { id: "hybrid", label: "Auto", sub: "Live → async fallback" },
@@ -30,7 +32,7 @@ const TEMPOS: { id: DuelTempo; label: string; sub: string }[] = [
 ];
 const CLOCKS: DuelClock[] = ["blitz", "rapid", "deep"];
 
-export function DuelView({ onExit }: { onExit: () => void }) {
+export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; initialJoinCode?: string | null }) {
   const profile = useProfile();
   const [deviceId, setDeviceId] = useState("");
   useEffect(() => { setDeviceId(getDeviceId()); }, []);
@@ -41,7 +43,11 @@ export function DuelView({ onExit }: { onExit: () => void }) {
     [deviceId, myName, profile.duelRating, profile.duelMatchesPlayed],
   );
 
-  const { match, setMatch, error, setError, busy, commit, forfeit, clear } = useDuelMatch(deviceId);
+  const { match, setMatch, error, setError, busy, opponentPresence, commit, submitRebuttal, forfeit, clear } = useDuelMatch(deviceId);
+
+  const lastLobby = useRef({ mode: "same-board" as DuelMode, tempo: "live" as DuelTempo, clock: "rapid" as DuelClock, kind: "queue" as "queue" | "friend" });
+  const [rebuttalText, setRebuttalText] = useState("");
+  const [dismissedRound, setDismissedRound] = useState(-1);
 
   const [mode, setMode] = useState<DuelMode>("same-board");
   const [tempo, setTempo] = useState<DuelTempo>("live");
@@ -61,6 +67,20 @@ export function DuelView({ onExit }: { onExit: () => void }) {
   const opponent = match?.players.find((p) => p.id !== match?.you) ?? null;
   const round = match ? match.rounds[match.currentRound] : null;
   const youCommitted = round?.youCommitted ?? false;
+  const inRebuttal = round?.phase === "rebuttal";
+  const hideChart = Boolean(match?.hideChart && round && !(round.youCommitted && round.opponentCommitted));
+
+  useEffect(() => {
+    const code = initialJoinCode?.trim();
+    if (!code || !deviceId || match) return;
+    let cancelled = false;
+    setCreating(true);
+    joinDuel(code, identity)
+      .then((m) => { if (!cancelled) setMatch(m); })
+      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Could not join"))
+      .finally(() => !cancelled && setCreating(false));
+    return () => { cancelled = true; };
+  }, [initialJoinCode, deviceId, match, identity, setMatch, setError]);
 
   useEffect(() => {
     if (!match || !deviceId || match.state !== "round_active" || match.currentRound === loadedRound) return;
@@ -100,6 +120,7 @@ export function DuelView({ onExit }: { onExit: () => void }) {
       setCreating(true);
       setError(null);
       recordedRef.current = false;
+      lastLobby.current = { mode, tempo, clock, kind };
       try {
         const { match: m } = await createDuel({ mode, tempo, clock: tempo === "async" ? null : clock, rated: true, kind, identity });
         setMatch(m);
@@ -139,8 +160,29 @@ export function DuelView({ onExit }: { onExit: () => void }) {
     clear();
     setProblem(null);
     setLoadedRound(-1);
+    setRebuttalText("");
+    setDismissedRound(-1);
     recordedRef.current = false;
   }, [clear]);
+
+  const rematch = useCallback(async () => {
+    const { mode: m, tempo: t, clock: c, kind } = lastLobby.current;
+    leave();
+    setMode(m);
+    setTempo(t);
+    setClock(c);
+    setCreating(true);
+    setError(null);
+    recordedRef.current = false;
+    try {
+      const { match: nm } = await createDuel({ mode: m, tempo: t, clock: t === "async" ? null : c, rated: true, kind, identity });
+      setMatch(nm);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start rematch");
+    } finally {
+      setCreating(false);
+    }
+  }, [identity, leave, setMatch, setError]);
 
   // ── lobby ──
   if (!match) {
@@ -223,7 +265,7 @@ export function DuelView({ onExit }: { onExit: () => void }) {
   }
 
   if (match.state === "match_end") {
-    return <Reveal match={match} you={you} opponent={opponent} problem={problem} onRematch={leave} onExit={onExit} />;
+    return <Reveal match={match} you={you} opponent={opponent} problem={problem} onRematch={rematch} onExit={onExit} />;
   }
 
   if (match.state === "abandoned") {
@@ -240,13 +282,48 @@ export function DuelView({ onExit }: { onExit: () => void }) {
     return <Waiting match={match} onCancel={() => { void forfeit(); leave(); }} onExit={onExit} />;
   }
 
+  const prevRound = match.currentRound > 0 ? match.rounds[match.currentRound - 1] : null;
+  if (match.roundsTotal > 1 && match.state === "round_active" && prevRound?.state === "complete" && match.currentRound > dismissedRound) {
+    return (
+      <Centered>
+        <div className="text-lg font-bold">Round {prevRound.index + 1} complete</div>
+        <p className="mt-2 text-center text-[13px] text-[var(--muted)]">
+          {prevRound.winnerId == null ? "Draw" : prevRound.winnerId === match.you ? "You won the round" : "They won the round"} — next setup loads now.
+        </p>
+        <Primary onClick={() => setDismissedRound(match.currentRound)}>Continue</Primary>
+      </Centered>
+    );
+  }
+
+  if (inRebuttal && !round?.youRebutted) {
+    return (
+      <div className="animate-rise">
+        <MatchHeader match={match} you={you} opponent={opponent} opponentPresence={opponentPresence} onExit={onExit} />
+        <RoundClock deadlineAt={round?.rebuttalDeadlineAt} />
+        <p className="mt-4 text-[15px] font-semibold">Counter their read — 30 seconds</p>
+        <p className="mt-1 text-[13px] text-[var(--muted)]">Your call is locked. Add a short rebuttal (70% read + 30% counter).</p>
+        <textarea value={rebuttalText} onChange={(e) => setRebuttalText(e.target.value)}
+          placeholder="Why your read still holds…"
+          className="mt-4 min-h-[100px] w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-[14px] outline-none" />
+        <button disabled={busy || !rebuttalText.trim()} onClick={() => submitRebuttal(rebuttalText)}
+          className="mt-4 w-full rounded-2xl bg-[var(--accent)] py-4 font-bold text-[var(--accent-ink)] disabled:opacity-40">
+          {busy ? "Submitting…" : "Submit rebuttal"}
+        </button>
+      </div>
+    );
+  }
+
   if (youCommitted) {
     return (
       <Centered>
         <div className="text-4xl">🔒</div>
-        <div className="mt-3 text-lg font-bold">Locked in</div>
-        <p className="mt-1.5 text-center text-[var(--muted)]">Waiting for {opponent?.name ?? "your opponent"} to make their call…</p>
-        <div className="mt-4 flex items-center gap-2 text-[13px] text-[var(--muted-2)]"><Spinner /> {opponent?.name ?? "Opponent"} is thinking</div>
+        <div className="mt-3 text-lg font-bold">{inRebuttal ? "Rebuttal window" : "Locked in"}</div>
+        <p className="mt-1.5 text-center text-[var(--muted)]">
+          {inRebuttal ? "Waiting for your rebuttal…" : `Waiting for ${opponent?.name ?? "your opponent"} to make their call…`}
+        </p>
+        <div className="mt-4 flex items-center gap-2 text-[13px] text-[var(--muted-2)]">
+          <Spinner /> {presenceLabel(opponentPresence, opponent?.name)}
+        </div>
         <div className="mt-4 text-[12px] text-[var(--muted-2)]">Round {match.currentRound + 1} of {match.roundsTotal}</div>
         <button onClick={onExit} className="mt-6 text-[12px] text-[var(--muted-2)]">Back to Rank</button>
       </Centered>
@@ -258,11 +335,18 @@ export function DuelView({ onExit }: { onExit: () => void }) {
   // ── round commit ──
   return (
     <div className="animate-rise">
-      <MatchHeader match={match} you={you} opponent={opponent} onExit={onExit} />
+      <MatchHeader match={match} you={you} opponent={opponent} opponentPresence={opponentPresence} onExit={onExit} />
       <RoundClock deadlineAt={round?.deadlineAt} converted={round?.convertedToAsync} />
 
-      <div className="card mt-3 overflow-hidden p-0">
-        <div className="px-1 pt-3"><SparkChart series={problem.series} /></div>
+      <div className="card relative mt-3 overflow-hidden p-0">
+        {hideChart ? (
+          <div className="flex h-[200px] flex-col items-center justify-center bg-[var(--card-2)] px-6 text-center">
+            <div className="text-3xl">🙈</div>
+            <p className="mt-2 text-[13px] text-[var(--muted)]">Chart hidden until both lock in — metrics only for now.</p>
+          </div>
+        ) : (
+          <div className="px-1 pt-3"><SparkChart series={problem.series} /></div>
+        )}
         <div className="flex flex-wrap border-t border-[var(--border)]">
           {problem.metrics.map((m, i) => (
             <div key={m.label} className={`w-1/2 px-4 py-2.5 ${i > 1 ? "border-t" : ""} ${i % 2 === 0 ? "border-r" : ""} border-[var(--border)]`}>
@@ -334,7 +418,10 @@ function Waiting({ match, onCancel, onExit }: { match: PublicDuelMatch; onCancel
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(match.challengeCode ?? "");
+      const text = isFriend && match.challengeCode
+        ? duelChallengeText(match.challengeCode, match.modeName)
+        : match.challengeCode ?? "";
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch { /* ignore */ }
@@ -352,7 +439,8 @@ function Waiting({ match, onCancel, onExit }: { match: PublicDuelMatch; onCancel
             <div className="text-[11px] text-[var(--muted-2)]">JOIN CODE</div>
             <div className="tnum text-xl font-extrabold tracking-widest text-[var(--accent)]">{match.challengeCode}</div>
           </div>
-          <Primary onClick={copy}>{copied ? "Copied!" : "Copy join code"}</Primary>
+          <Primary onClick={copy}>{copied ? "Copied!" : "Copy invite link"}</Primary>
+          <p className="mt-2 max-w-xs text-center text-[11px] text-[var(--muted-2)]">{match.challengeCode ? duelJoinUrl(match.challengeCode) : ""}</p>
         </>
       )}
       <button onClick={onCancel} className="mt-3.5 text-[var(--muted)]">Cancel</button>
@@ -365,6 +453,7 @@ function Reveal({ match, you, opponent, problem, onRematch, onExit }: {
   match: PublicDuelMatch; you: PlayerSlot | null; opponent: PlayerSlot | null; problem: DailyProblem | null; onRematch: () => void; onExit: () => void;
 }) {
   const [showOppReasoning, setShowOppReasoning] = useState(false);
+  const [shared, setShared] = useState(false);
   const isFriend = Boolean(match.challengeCode);
   const won = match.winnerId === match.you;
   const draw = match.winnerId == null;
@@ -471,7 +560,29 @@ function Reveal({ match, you, opponent, problem, onRematch, onExit }: {
         </div>
       )}
 
-      <Primary onClick={onRematch}>New duel</Primary>
+      <Primary onClick={onRematch}>Rematch</Primary>
+      <button
+        onClick={async () => {
+          const text = duelShareText({
+            won,
+            draw,
+            delta,
+            ratingAfter: you?.duelRatingAfter ?? 0,
+            opponentName: oppName.replace(" 🤖", ""),
+            modeName: match.modeName,
+            yourScore: yg?.score,
+            oppScore: og?.score,
+          });
+          try {
+            await navigator.clipboard.writeText(text);
+            setShared(true);
+            setTimeout(() => setShared(false), 1500);
+          } catch { /* ignore */ }
+        }}
+        className="mt-2.5 w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] py-3.5 font-bold"
+      >
+        {shared ? "Copied!" : "Share result"}
+      </button>
       <button onClick={onExit} className="mt-3 block w-full text-center text-[13px] text-[var(--muted-2)]">Back to Rank</button>
     </div>
   );
@@ -506,17 +617,24 @@ function confidenceLabel(grade: RoundGrade): string {
   return `${Math.round(grade.confidence * 100)}% confident`;
 }
 
-function MatchHeader({ match, you, opponent, onExit }: { match: PublicDuelMatch; you: PlayerSlot | null; opponent: PlayerSlot | null; onExit: () => void }) {
+function MatchHeader({ match, you, opponent, opponentPresence, onExit }: {
+  match: PublicDuelMatch; you: PlayerSlot | null; opponent: PlayerSlot | null; opponentPresence?: DuelPresenceStatus | null; onExit: () => void;
+}) {
   const completed = match.rounds.filter((r) => r.state === "complete");
   const youWins = completed.filter((r) => r.winnerId === match.you).length;
   const oppWins = completed.filter((r) => r.winnerId && r.winnerId !== match.you).length;
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5 text-[13px]">
-        <span className="font-bold text-[var(--accent)]">{you?.name ?? "You"} <span className="text-[var(--muted-2)]">{you?.duelRating}</span></span>
-        {match.roundsTotal > 1 && <span className="tnum">{youWins}–{oppWins}</span>}
-        <span className="text-[var(--muted-2)]">vs</span>
-        <span className="font-bold">{opponent?.name ?? "Opponent"}{opponent?.isBot ? " 🤖" : ""} <span className="text-[var(--muted-2)]">{opponent?.duelRating}</span></span>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2.5 text-[13px]">
+          <span className="font-bold text-[var(--accent)]">{you?.name ?? "You"} <span className="text-[var(--muted-2)]">{you?.duelRating}</span></span>
+          {match.roundsTotal > 1 && <span className="tnum">{youWins}–{oppWins}</span>}
+          <span className="text-[var(--muted-2)]">vs</span>
+          <span className="font-bold">{opponent?.name ?? "Opponent"}{opponent?.isBot ? " 🤖" : ""} <span className="text-[var(--muted-2)]">{opponent?.duelRating}</span></span>
+        </div>
+        {opponentPresence && (
+          <div className="text-[11px] text-[var(--muted-2)]">{presenceLabel(opponentPresence, opponent?.name)}</div>
+        )}
       </div>
       <button onClick={onExit} className="text-[12px] text-[var(--muted-2)]">Exit</button>
     </div>
@@ -593,3 +711,11 @@ function secsLeft(deadlineAt?: string) {
   return Math.max(0, Math.floor((Date.parse(deadlineAt) - Date.now()) / 1000));
 }
 function fmtClock(s: number) { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${String(sec).padStart(2, "0")}`; }
+
+function presenceLabel(status: DuelPresenceStatus | null | undefined, name?: string): string {
+  const who = name ?? "Opponent";
+  if (status === "locked") return `${who} locked in 🔒`;
+  if (status === "disconnected") return `${who} disconnected`;
+  if (status === "thinking") return `${who} is thinking…`;
+  return `${who} is thinking…`;
+}

@@ -8,10 +8,14 @@ import type { DuelClock, DuelMode, DuelTempo, MatchState, PlayerSlot, RoundGrade
 export interface PublicRound {
   index: number;
   state: "active" | "complete";
+  phase?: "commit" | "rebuttal";
   deadlineAt?: string;
+  rebuttalDeadlineAt?: string;
   convertedToAsync?: boolean;
   youCommitted: boolean;
   opponentCommitted: boolean;
+  youRebutted?: boolean;
+  opponentRebutted?: boolean;
   winnerId?: string | null;
   grades?: Record<string, RoundGrade>;
   yourReasoning?: string;
@@ -35,10 +39,20 @@ export interface PublicDuelMatch {
   rounds: PublicRound[];
   winnerId?: string | null;
   challengeCode?: string;
+  hideChart?: boolean;
   you: string;
 }
 
 export interface CreateResult {
   match: PublicDuelMatch;
   joined: boolean;
+}
+
+/** Ably capability descriptor — returned by GET /api/duel/realtime. */
+export interface DuelRealtimeConfig {
+  enabled: boolean;
+  transport: "ably" | "polling";
+  channel: string;
+  /** Present when `enabled` — pass to Ably Realtime authCallback. */
+  tokenRequest?: Record<string, unknown>;
 }

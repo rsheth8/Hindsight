@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { hasRealtime } from "@/lib/env";
 import { cleanDeviceId } from "@/lib/game/duel-input";
+import { createMatchTokenRequest, duelChannelName } from "@/lib/duel/realtime";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Realtime capability + channel descriptor for a duel.
+ * Realtime capability + Ably token for a duel.
  *
- * V1 transport is REST polling (works everywhere with zero infra). When
- * ABLY_API_KEY is set this endpoint is where a scoped Ably token will be minted
- * so clients can subscribe to `match:{id}` for instant updates instead of
- * polling. Until then it reports `enabled:false` and the client polls. See
- * docs/duel-design.md → Infrastructure.
+ * When ABLY_API_KEY is set, returns a scoped subscribe token for `match:{id}`.
+ * Clients subscribe to the `updated` event and re-fetch match state from the
+ * REST API (authoritative). Without Ably, reports `enabled:false` and the
+ * client falls back to REST polling.
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -21,12 +21,29 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "matchId and deviceId are required" }, { status: 400 });
   }
 
+  const channel = duelChannelName(matchId);
+
+  if (!hasRealtime()) {
+    return NextResponse.json(
+      { enabled: false, transport: "polling" as const, channel },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
+  const tokenRequest = await createMatchTokenRequest(matchId, viewerId);
+  if (!tokenRequest) {
+    return NextResponse.json(
+      { enabled: false, transport: "polling" as const, channel },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
   return NextResponse.json(
     {
-      enabled: hasRealtime(),
-      transport: hasRealtime() ? "ably" : "polling",
-      channel: `match:${matchId}`,
-      // token: <minted here once the Ably SDK is wired>
+      enabled: true,
+      transport: "ably" as const,
+      channel,
+      tokenRequest,
     },
     { headers: { "cache-control": "no-store" } },
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProfileProvider } from "./src/lib/profile";
@@ -21,7 +22,23 @@ function Shell() {
   const [tab, setTab] = useState<TabKey>("daily");
   const [blindReplay, setBlindReplay] = useState(false);
   const [duel, setDuel] = useState(false);
+  const [duelJoinCode, setDuelJoinCode] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    function openDuelLink(url: string) {
+      const parsed = Linking.parse(url);
+      const code = parsed.queryParams?.duel;
+      if (typeof code === "string" && code.trim()) {
+        setTab("rank");
+        setDuel(true);
+        setDuelJoinCode(code.trim().toUpperCase());
+      }
+    }
+    Linking.getInitialURL().then((url) => { if (url) openDuelLink(url); });
+    const sub = Linking.addEventListener("url", ({ url }) => openDuelLink(url));
+    return () => sub.remove();
+  }, []);
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
@@ -30,7 +47,7 @@ function Shell() {
           {tab === "practice" && !blindReplay && <PracticeScreen onBlindReplay={() => setBlindReplay(true)} />}
           {tab === "practice" && blindReplay && <BlindReplayScreen onExit={() => setBlindReplay(false)} />}
           {tab === "rank" && !duel && <RankScreen onDuel={() => setDuel(true)} />}
-          {tab === "rank" && duel && <DuelScreen onExit={() => setDuel(false)} />}
+          {tab === "rank" && duel && <DuelScreen initialJoinCode={duelJoinCode} onExit={() => { setDuel(false); setDuelJoinCode(null); }} />}
           {tab === "journal" && <JournalScreen />}
           {tab === "you" && <YouScreen />}
         </View>
