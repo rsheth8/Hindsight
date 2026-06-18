@@ -57,15 +57,36 @@ export function emptyProfile(): Profile {
   };
 }
 
+/**
+ * Stable reference for SSR + the useSyncExternalStore server snapshot. It must
+ * keep the same identity across calls, or React loops re-rendering.
+ */
+export const SERVER_PROFILE: Profile = emptyProfile();
+
+// Snapshot cache: useSyncExternalStore requires getSnapshot to return the SAME
+// reference until the underlying data actually changes. Re-parsing localStorage
+// into a fresh object on every call would loop forever, so we cache by raw string.
+let cachedProfile: Profile = SERVER_PROFILE;
+let cachedRaw: string | null = null;
+let cacheInit = false;
+
 export function loadProfile(): Profile {
-  if (typeof window === "undefined") return emptyProfile();
+  if (typeof window === "undefined") return SERVER_PROFILE;
+  let raw: string | null;
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return emptyProfile();
-    return { ...emptyProfile(), ...(JSON.parse(raw) as Profile) };
+    raw = window.localStorage.getItem(KEY);
   } catch {
-    return emptyProfile();
+    raw = null;
   }
+  if (cacheInit && raw === cachedRaw) return cachedProfile;
+  cachedRaw = raw;
+  cacheInit = true;
+  try {
+    cachedProfile = raw ? { ...emptyProfile(), ...(JSON.parse(raw) as Profile) } : emptyProfile();
+  } catch {
+    cachedProfile = emptyProfile();
+  }
+  return cachedProfile;
 }
 
 function save(p: Profile) {
