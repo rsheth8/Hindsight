@@ -12,11 +12,13 @@ import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { SparkChart } from "../components/SparkChart";
 import { CountUp } from "../components/CountUp";
+import { Confetti } from "../components/Confetti";
 import { useProfile, type JournalEntry } from "../lib/profile";
 import { fetchBlindReplay, gradeSubmission } from "../lib/api";
 import { buildReasoning, chipsForProblem, hasReasoning } from "../lib/game/reasoning-chips";
 import { conceptsForProblem } from "../lib/game/concepts";
 import { derivePracticeFocus, focusLabel } from "../lib/game/practice";
+import { verdict as getVerdict, transferableSkill, verdictToneColor } from "../lib/game/progress";
 import { COACH } from "../lib/coach";
 import type { ConceptId } from "../lib/game/concept-types";
 import type { ChoiceId, DailyProblem, GradeResult } from "../lib/game/types";
@@ -36,6 +38,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
   const focus = useMemo(() => derivePracticeFocus(profile.history), [profile.history]);
 
   const [seed] = useState(newSeed);
+  const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("play");
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState<DailyProblem | null>(null);
@@ -64,7 +67,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
       setCanAdvance(data.canAdvance);
       setStepDays(data.stepDays);
     } catch {
-      onExit();
+      setError("Couldn't load blind replay. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -82,6 +85,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
     if (!choice || !problem) return;
     ratingFrom.current = profile.rating;
     setPhase("grading");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const data = await gradeSubmission({
         choice,
@@ -114,13 +118,15 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
         concepts: [...new Set<ConceptId>([...conceptsForProblem(problem), "reversal"])],
       };
       await recordPractice(entry);
+      Haptics.notificationAsync(data.earned ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
       setPhase("reveal");
     } catch {
+      setError("Grading failed. Check your connection and try again.");
       setPhase("play");
     }
   }
 
-  if (loading || !problem) {
+  if (loading && !problem && !error) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.bg }}>
         <ActivityIndicator color={C.accent} />
@@ -128,20 +134,56 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
     );
   }
 
+  if (error && !problem) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.bg, padding: 24 }}>
+        <Text style={{ fontSize: 36 }}>👁️</Text>
+        <Text style={{ marginTop: 12, fontSize: 14, color: C.muted, textAlign: "center" }}>{error}</Text>
+        <Pressable onPress={() => load(0)} style={{ marginTop: 16, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24, backgroundColor: C.accent }}>
+          <Text style={{ fontWeight: "700", color: C.accentInk }}>Retry</Text>
+        </Pressable>
+        <Pressable onPress={onExit} style={{ marginTop: 12, padding: 8 }}>
+          <Text style={{ color: C.muted }}>Back to Practice</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!problem) return null;
+
   if (phase === "reveal" && result) {
+    const v = getVerdict(result);
+    const skill = transferableSkill(problem, result);
     const r = result.reveal;
+    const up = r.forwardReturnPct >= 0;
     return (
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {result.earned && <Confetti />}
         <Text style={{ fontSize: 11, color: C.muted2, textTransform: "uppercase" }}>Blind replay · {visibleDays} days seen</Text>
-        <CountUp from={ratingFrom.current} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: C.accent, marginTop: 8, fontVariant: ["tabular-nums"] }} />
-        <Text style={{ marginTop: 8, fontSize: 14, color: C.muted }}>{r.company} · {r.forwardReturnPct >= 0 ? "+" : ""}{r.forwardReturnPct}%</Text>
+        <View style={{ alignItems: "center", marginTop: 8 }}>
+          <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: verdictToneColor(v.tone), paddingHorizontal: 14, paddingVertical: 5 }}>
+            <Text style={{ fontSize: 13, fontWeight: "800", color: verdictToneColor(v.tone) }}>{v.badge}</Text>
+          </View>
+          <CountUp from={ratingFrom.current} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: result.ratingDelta >= 0 ? C.accent : C.bad, marginTop: 8, fontVariant: ["tabular-nums"] }} />
+          <Text style={{ marginTop: 2, fontSize: 14, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }}>
+            {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta} rating
+          </Text>
+          <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 19, color: C.muted, textAlign: "center" }}>{v.line}</Text>
+        </View>
+        <Text style={{ marginTop: 12, fontSize: 14, color: C.muted }}>{r.company} · {r.forwardReturnPct >= 0 ? "+" : ""}{r.forwardReturnPct}%</Text>
         <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
           <SparkChart series={problem.series} continuation={r.continuation} width={chartW} />
         </View>
         <Text style={{ marginTop: 12, fontSize: 13, color: C.fg }}>{COACH.emoji} {COACH.name}: {result.explanation}</Text>
+        <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(94,242,176,0.06)", paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1, color: C.accent, textTransform: "uppercase", fontWeight: "700" }}>🎯 What you practiced</Text>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: C.fg, marginTop: 4 }}>{skill.title}</Text>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: C.muted, marginTop: 3 }}>{skill.line}</Text>
+        </View>
         <Pressable onPress={onExit} style={{ marginTop: 20, borderRadius: 14, paddingVertical: 16, alignItems: "center", backgroundColor: C.accent }}>
           <Text style={{ fontWeight: "700", color: C.accentInk }}>Back to Practice</Text>
         </Pressable>
+        <Text style={{ marginTop: 16, textAlign: "center", fontSize: 11, color: C.muted2 }}>Educational only · never buy/sell advice.</Text>
       </ScrollView>
     );
   }
@@ -197,6 +239,10 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
       </View>
       <TextInput value={customReasoning} onChangeText={setCustomReasoning} placeholder="Optional note…" placeholderTextColor={C.muted2}
         style={{ marginTop: 10, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, color: C.fg, backgroundColor: C.card2 }} />
+
+      {error && phase === "play" && (
+        <Text style={{ marginTop: 12, textAlign: "center", fontSize: 13, color: C.bad }}>{error}</Text>
+      )}
 
       <Pressable disabled={!canSubmit || grading} onPress={submit}
         style={{ marginTop: 16, borderRadius: 14, paddingVertical: 16, alignItems: "center", backgroundColor: C.accent, opacity: !canSubmit || grading ? 0.4 : 1 }}>

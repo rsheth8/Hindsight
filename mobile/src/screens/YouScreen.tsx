@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, Switch, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { useProfile } from "../lib/profile";
@@ -20,14 +20,34 @@ export function YouScreen() {
   const trend = skillTrend(p.history);
   const tips = insights(p.history);
   const trackW = Math.min(width, 440) - 40 - 40; // screen − page pad − card pad
+  const [reminderBlocked, setReminderBlocked] = useState(false);
 
   useEffect(() => {
     if (p.reminderEnabled) {
-      scheduleDailyReminder(p.reminderHour ?? 18, p.reminderMinute ?? 0).catch(() => {});
+      scheduleDailyReminder(p.reminderHour ?? 18, p.reminderMinute ?? 0)
+        .then((s) => setReminderBlocked(s === "denied"))
+        .catch(() => setReminderBlocked(true));
     } else {
       cancelDailyReminder().catch(() => {});
+      setReminderBlocked(false);
     }
   }, [p.reminderEnabled, p.reminderHour, p.reminderMinute]);
+
+  async function toggleReminder(v: boolean) {
+    if (v) {
+      const status = await scheduleDailyReminder(p.reminderHour ?? 18, p.reminderMinute ?? 0);
+      if (status === "denied") {
+        setReminderBlocked(true);
+        await updateSettings({ reminderEnabled: false });
+        return;
+      }
+      setReminderBlocked(false);
+    } else {
+      await cancelDailyReminder();
+      setReminderBlocked(false);
+    }
+    await updateSettings({ reminderEnabled: v });
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
@@ -100,10 +120,15 @@ export function YouScreen() {
           </View>
           <Switch
             value={p.reminderEnabled ?? false}
-            onValueChange={(v) => updateSettings({ reminderEnabled: v })}
+            onValueChange={(v) => { toggleReminder(v).catch(() => {}); }}
             trackColor={{ false: C.card2, true: C.accent }}
           />
         </View>
+        {reminderBlocked && (
+          <Text style={{ marginTop: 10, fontSize: 12, color: C.warn }}>
+            Notifications are off in iOS Settings — enable them to get daily reminders.
+          </Text>
+        )}
         {p.reminderEnabled && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
             {REMINDER_HOURS.map((h) => {

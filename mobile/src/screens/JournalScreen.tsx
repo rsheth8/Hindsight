@@ -1,5 +1,6 @@
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
+import { journalEntryKind, journalEntryKindLabel } from "../lib/game/journal-entry-kind";
 import { useProfile } from "../lib/profile";
 import { C } from "../theme";
 
@@ -24,7 +25,9 @@ export function JournalScreen() {
                 <Text style={{ fontSize: 14, fontWeight: "700", color: h.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }}>{h.ratingDelta >= 0 ? "+" : ""}{h.ratingDelta}</Text>
               </View>
               <Text style={{ marginTop: 4, fontSize: 12, color: C.muted }}>
-                {h.date}{h.problemId.startsWith("practice") ? " · practice" : ""} · {h.choiceLabel} · {Math.round(h.confidence * 100)}% sure · <Text style={{ color: h.correct ? C.up : C.down }}>{h.correct ? "correct" : "missed"} ({h.forwardReturnPct >= 0 ? "+" : ""}{h.forwardReturnPct}%)</Text>
+                {h.date}
+                {journalEntryKind(h.problemId) !== "daily" ? ` · ${journalEntryKindLabel(journalEntryKind(h.problemId))}` : ""}
+                {" · "}{h.choiceLabel} · {Math.round(h.confidence * 100)}% sure · <Text style={{ color: h.correct ? C.up : C.down }}>{h.correct ? "correct" : "missed"} ({h.forwardReturnPct >= 0 ? "+" : ""}{h.forwardReturnPct}%)</Text>
               </Text>
               {!!h.reasoning && <Text style={{ marginTop: 8, fontSize: 13, fontStyle: "italic", color: C.fg }}>“{h.reasoning}”</Text>}
               <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
@@ -36,6 +39,9 @@ export function JournalScreen() {
           ))}
         </View>
       )}
+      <Text style={{ marginTop: 24, textAlign: "center", fontSize: 11, color: C.muted2 }}>
+        Educational only · never buy/sell advice · your data stays on this device for now.
+      </Text>
     </ScrollView>
   );
 }

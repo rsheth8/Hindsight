@@ -48,10 +48,13 @@ export function DailyGame() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/daily")
-      .then((r) => r.json())
-      .then((data: DailyProblem & { error?: string }) => {
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || data.error) throw new Error(data.error || `Couldn't load (${r.status})`);
+        return data as DailyProblem;
+      })
+      .then((data) => {
         if (cancelled) return;
-        if (data.error) { setError(data.error); return; }
         setProblem(data);
         setPhase(hasPlayed(loadOnce(), data.date) ? "done-today" : "commit");
       })

@@ -2,7 +2,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { SparkChart } from "./SparkChart";
 import { Confetti } from "./Confetti";
+import { ShareCard } from "./ShareCard";
 import { CountUp } from "./CountUp";
+import { DepthToggle } from "./DepthToggle";
+import { Disclaimer } from "./Disclaimer";
 import { useProfile } from "@/lib/profile/useProfile";
 import { recordPracticeResult, type JournalEntry } from "@/lib/profile/store";
 import { isProvisional } from "@/lib/game/rating";
@@ -15,6 +18,7 @@ import {
   type PracticeFocus,
 } from "@/lib/game/practice-focus";
 import { verdict, transferableSkill, type VerdictTone } from "@/lib/game/progress";
+import { COACH } from "@/lib/coach";
 import type { ChoiceId, DailyProblem, GradeResult } from "@/lib/game/types";
 import { BlindReplayGame } from "./BlindReplayGame";
 
@@ -44,7 +48,7 @@ export function PracticeGame() {
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [customReasoning, setCustomReasoning] = useState("");
   const [showCustomReasoning, setShowCustomReasoning] = useState(false);
-  const [depth] = useState<Depth>("learn");
+  const [depth, setDepth] = useState<Depth>("learn");
 
   const [result, setResult] = useState<GradeResult | null>(null);
   const [ratingFrom, setRatingFrom] = useState(profile.rating);
@@ -156,15 +160,10 @@ export function PracticeGame() {
         </button>
         {error && <p className="mt-3 text-center text-sm text-[var(--bad)]">{error}</p>}
 
-        <h2 className="mt-8 text-sm font-semibold">More modes — coming soon</h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {["Spot the flaw", "Valuation puzzle", "Calibration bet", "Bias trap"].map((m) => (
-            <div key={m} className="card flex items-center justify-between px-4 py-3 opacity-75">
-              <span className="text-sm">{m}</span>
-              <span className="rounded-full bg-[var(--card-2)] px-2 py-0.5 text-[10px] text-[var(--muted-2)]">soon</span>
-            </div>
-          ))}
-        </div>
+        <p className="mt-8 text-center text-[12px] text-[var(--muted-2)]">
+          More practice modes (spot the flaw, valuation, calibration bet) coming in future updates.
+        </p>
+        <Disclaimer className="mt-6" />
       </div>
     );
   }
@@ -204,14 +203,38 @@ export function PracticeGame() {
           <div className="px-2 pt-2"><SparkChart series={problem.series} continuation={r.continuation} /></div>
         </div>
 
+        <div className="card mt-4 px-4 py-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold">{COACH.emoji} {COACH.name}&apos;s read</span>
+            <DepthToggle depth={depth} setDepth={setDepth} />
+          </div>
+          <p className="text-[14px] leading-relaxed text-[var(--fg)]/90">{result.explanation}</p>
+          <div className="mt-3 rounded-xl bg-[var(--card-2)] px-3 py-2.5 text-[13px] text-[var(--muted)]">
+            <span className="font-semibold text-[var(--fg)]">On your reasoning: </span>{result.reasoningNotes}
+          </div>
+        </div>
+
         <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">🎯 What you practiced</div>
           <div className="mt-1 font-bold">{skill.title}</div>
           <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{skill.line}</p>
         </div>
 
+        <div className="mt-5">
+          <ShareCard
+            date={problem.date}
+            rating={result.newRating}
+            delta={result.ratingDelta}
+            streak={profile.streak}
+            correct={result.correct}
+            brier={result.brier}
+            reasoning={result.reasoning}
+          />
+        </div>
+
         <button type="button" onClick={() => loadProblem(newSeed(), focus)} className="btn-primary mt-5 w-full py-4">Another one</button>
         <button type="button" onClick={() => { resetRound(); setPhase("hub"); }} className="mt-3 w-full py-2 text-sm text-[var(--muted)]">Back to Practice hub</button>
+        <Disclaimer className="mt-4" />
       </div>
     );
   }

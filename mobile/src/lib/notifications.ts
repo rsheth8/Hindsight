@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function ensureNotificationPermission(): Promise<boolean> {
+export async function ensureNotificationPermission(): Promise<"granted" | "denied" | "undetermined"> {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("daily", {
       name: "Daily reminder",
@@ -22,15 +22,17 @@ export async function ensureNotificationPermission(): Promise<boolean> {
     });
   }
   const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === "granted") return true;
+  if (existing === "granted") return "granted";
   const { status } = await Notifications.requestPermissionsAsync();
-  return status === "granted";
+  if (status === "granted") return "granted";
+  if (status === "denied") return "denied";
+  return "undetermined";
 }
 
-export async function scheduleDailyReminder(hour: number, minute: number): Promise<void> {
+export async function scheduleDailyReminder(hour: number, minute: number): Promise<"granted" | "denied"> {
   await Notifications.cancelAllScheduledNotificationsAsync();
-  const ok = await ensureNotificationPermission();
-  if (!ok) return;
+  const status = await ensureNotificationPermission();
+  if (status !== "granted") return "denied";
 
   await Notifications.scheduleNotificationAsync({
     content: {
@@ -43,6 +45,7 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       minute,
     },
   });
+  return "granted";
 }
 
 export async function cancelDailyReminder(): Promise<void> {

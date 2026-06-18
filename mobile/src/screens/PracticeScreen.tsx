@@ -169,15 +169,12 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
 
         {error && <Text style={{ marginTop: 12, textAlign: "center", fontSize: 13, color: C.bad }}>{error}</Text>}
 
-        <Text style={{ marginTop: 28, fontSize: 14, fontWeight: "700", color: C.fg }}>More modes — coming soon</Text>
-        <View style={{ gap: 10, marginTop: 10 }}>
-          {["Spot the flaw", "Valuation puzzle", "Calibration bet", "Bias trap"].map((m) => (
-            <View key={m} style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", justifyContent: "space-between", opacity: 0.75 }}>
-              <Text style={{ fontSize: 13, color: C.fg }}>{m}</Text>
-              <Text style={{ fontSize: 10, color: C.muted2 }}>soon</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={{ marginTop: 28, textAlign: "center", fontSize: 12, color: C.muted2, lineHeight: 18 }}>
+          More practice modes (spot the flaw, valuation, calibration bet) coming in future updates.
+        </Text>
+        <Text style={{ marginTop: 16, textAlign: "center", fontSize: 11, color: C.muted2 }}>
+          Educational only · never buy/sell advice.
+        </Text>
       </ScrollView>
     );
   }

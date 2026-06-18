@@ -1,5 +1,7 @@
 "use client";
 import { useProfile } from "@/lib/profile/useProfile";
+import { journalEntryKind, journalEntryKindLabel } from "@/lib/game/journal-entry-kind";
+import { Disclaimer } from "@/components/Disclaimer";
 
 export default function JournalPage() {
   const p = useProfile();
@@ -25,8 +27,10 @@ export default function JournalPage() {
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--muted)]">
                 <span>{h.date}</span>
-                {h.problemId.startsWith("practice") && (
-                  <span className="rounded-md bg-[var(--card-2)] px-1.5 py-0.5 text-[10px] text-[var(--muted-2)]">practice</span>
+                {journalEntryKind(h.problemId) !== "daily" && (
+                  <span className="rounded-md bg-[var(--card-2)] px-1.5 py-0.5 text-[10px] text-[var(--muted-2)]">
+                    {journalEntryKindLabel(journalEntryKind(h.problemId))}
+                  </span>
                 )}
                 <span>·</span>
                 <span>{h.choiceLabel}</span>
@@ -45,6 +49,7 @@ export default function JournalPage() {
           ))}
         </div>
       )}
+      <Disclaimer className="mt-8" />
     </div>
   );
 }

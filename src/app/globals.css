@@ -127,5 +127,11 @@ input[type="range"].dial:active::-webkit-slider-thumb {
   border-radius: 14px;
   transition: transform 0.08s ease, filter 0.15s ease;
 }
-.btn-primary:active { transform: scale(0.98); }
-.btn-primary:disabled { opacity: 0.4; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .animate-flip,
+  .animate-rise {
+    animation: none !important;
+  }
+}
+

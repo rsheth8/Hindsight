@@ -26,7 +26,7 @@ export function shareText(input: ShareImageInput): string {
     `${row}\n` +
     `Rating ${input.rating} (${input.delta >= 0 ? "+" : ""}${input.delta}) · 🔥 ${input.streak}\n` +
     `Better-calibrated than I was yesterday.\n` +
-    `play › hindsight.game`
+    `play › ${(process.env.NEXT_PUBLIC_APP_URL ?? "hindsight.game").replace(/^https?:\/\//, "")}`
   );
 }
 
