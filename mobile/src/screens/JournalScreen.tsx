@@ -2,13 +2,13 @@ import React from "react";
 import { ScrollView, Text, View } from "react-native";
 import { journalEntryKind, journalEntryKindLabel } from "../lib/game/journal-entry-kind";
 import { useProfile } from "../lib/profile";
-import { C } from "../theme";
+import { C, F } from "../theme";
 
 export function JournalScreen() {
   const { profile: p } = useProfile();
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800", color: C.fg }}>Journal</Text>
+      <Text style={{ fontSize: 22, color: C.fg, fontFamily: F.display, letterSpacing: -0.5 }}>Journal</Text>
       <Text style={{ marginTop: 4, fontSize: 13, color: C.muted }}>Every call you&apos;ve logged — your thesis, your confidence, and what actually happened.</Text>
 
       {p.history.length === 0 ? (
@@ -48,7 +48,7 @@ export function JournalScreen() {
 
 function Tag({ text, accent }: { text: string; accent?: boolean }) {
   return (
-    <View style={{ borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: accent ? "rgba(94,242,176,0.12)" : C.card2 }}>
+    <View style={{ borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: accent ? "rgba(240,197,96,0.14)" : C.card2 }}>
       <Text style={{ fontSize: 11, color: accent ? C.accent : C.muted2 }}>{text}</Text>
     </View>
   );

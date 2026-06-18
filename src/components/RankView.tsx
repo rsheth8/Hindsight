@@ -34,7 +34,7 @@ export function RankView() {
 
       <button
         onClick={() => setDuel(true)}
-        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-4 text-left transition hover:bg-[rgba(94,242,176,0.1)]"
+        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-4 text-left transition hover:bg-[rgba(240,197,96,0.12)]"
       >
         <div>
           <div className="text-base font-extrabold">⚔️  Duel someone</div>
@@ -55,6 +55,8 @@ export function RankView() {
         <Best label="Best day" value={`+${bests.bestRatingDelta}`} />
         <Best label="Streak freezes" value={String(p.streakFreezes ?? 1)} sub="per week" />
       </div>
+
+      <LeaderboardCard />
 
       <h2 className="mt-6 text-sm font-semibold">Skill tree</h2>
       <p className="mt-1 text-[12px] text-[var(--muted)]">Concept mastery from your journal — sharp means consistent calibration + reasoning.</p>
@@ -83,8 +85,40 @@ export function RankView() {
       <div className="card mt-5 px-4 py-4 text-center">
         <div className="text-2xl">🏆</div>
         <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
-          Global leagues + weekly cohorts unlock once enough players are climbing. Your local tree is already tracking real skill.
+          Weekly leagues with promotion unlock at scale. The calibration board above is live when enough daily players submit.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardCard() {
+  const [data, setData] = useState<{ week: string; entries: { id: string; calibration: number; calls: number }[]; real: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/leaderboard")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null));
+  }, []);
+
+  return (
+    <div className="mt-6">
+      <h2 className="text-sm font-semibold">Weekly calibration board</h2>
+      <p className="mt-1 text-[12px] text-[var(--muted)]">Ranked on calibration, not returns · {data?.week ?? "…"}</p>
+      <div className="card mt-3 px-4 py-3">
+        {!data?.real || !data.entries.length ? (
+          <p className="text-[13px] text-[var(--muted)]">Board fills in as more players complete daily calls this week.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {data.entries.slice(0, 10).map((e, i) => (
+              <div key={e.id} className="flex items-center justify-between text-[13px]">
+                <span className="text-[var(--muted)]">#{i + 1} · …{e.id}</span>
+                <span className="tnum font-bold text-[var(--accent)]">{e.calibration} cal</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

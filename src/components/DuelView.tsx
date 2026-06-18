@@ -203,7 +203,7 @@ export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; init
             const sel = mode === m;
             return (
               <button key={m} onClick={() => setMode(m)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${sel ? "border-[var(--accent)] bg-[rgba(94,242,176,0.08)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
+                className={`rounded-2xl border px-4 py-3 text-left transition ${sel ? "border-[var(--accent)] bg-[rgba(240,197,96,0.10)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
                 <div className="font-bold">{meta.emoji}  {meta.name}</div>
                 <div className="mt-0.5 text-[12px] text-[var(--muted)]">{meta.blurb}</div>
               </button>
@@ -217,7 +217,7 @@ export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; init
             const sel = tempo === t.id;
             return (
               <button key={t.id} onClick={() => setTempo(t.id)}
-                className={`rounded-xl border px-2 py-3 text-center transition ${sel ? "border-[var(--accent)] bg-[rgba(94,242,176,0.08)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
+                className={`rounded-xl border px-2 py-3 text-center transition ${sel ? "border-[var(--accent)] bg-[rgba(240,197,96,0.10)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
                 <div className={`text-sm font-bold ${sel ? "text-[var(--accent)]" : ""}`}>{t.label}</div>
                 <div className="mt-0.5 text-[10px] text-[var(--muted-2)]">{t.sub}</div>
               </button>
@@ -233,7 +233,7 @@ export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; init
                 const sel = clock === cl;
                 return (
                   <button key={cl} onClick={() => setClock(cl)}
-                    className={`rounded-xl border py-3 text-center text-[13px] font-bold transition ${sel ? "border-[var(--accent)] bg-[rgba(94,242,176,0.08)] text-[var(--accent)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
+                    className={`rounded-xl border py-3 text-center text-[13px] font-bold transition ${sel ? "border-[var(--accent)] bg-[rgba(240,197,96,0.10)] text-[var(--accent)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
                     {CLOCK_LABEL[cl]}
                   </button>
                 );
@@ -364,7 +364,7 @@ export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; init
           const sel = choice === c.id;
           return (
             <button key={c.id} onClick={() => setChoice(c.id)}
-              className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${sel ? "border-[var(--accent)] bg-[rgba(94,242,176,0.08)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
+              className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${sel ? "border-[var(--accent)] bg-[rgba(240,197,96,0.10)]" : "border-[var(--border)] bg-[var(--card)]"}`}>
               <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold ${sel ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--card-2)] text-[var(--muted)]"}`}>{c.id}</span>
               <span className="text-[15px]">{c.label}</span>
             </button>
@@ -389,7 +389,7 @@ export function DuelView({ onExit, initialJoinCode }: { onExit: () => void; init
             const sel = selectedChips.includes(chip.label);
             return (
               <button key={chip.id} onClick={() => setSelectedChips((prev) => sel ? prev.filter((l) => l !== chip.label) : [...prev, chip.label])}
-                className={`rounded-full border px-3 py-1.5 text-[13px] transition ${sel ? "border-[var(--accent)] bg-[rgba(94,242,176,0.12)] text-[var(--accent)]" : "border-[var(--border)] bg-[var(--card-2)]"}`}>
+                className={`rounded-full border px-3 py-1.5 text-[13px] transition ${sel ? "border-[var(--accent)] bg-[rgba(240,197,96,0.14)] text-[var(--accent)]" : "border-[var(--border)] bg-[var(--card-2)]"}`}>
                 {chip.label}
               </button>
             );
@@ -591,7 +591,7 @@ function Reveal({ match, you, opponent, problem, onRematch, onExit }: {
 function GradeCol({ name, grade, highlight, choices }: { name: string; grade?: RoundGrade; highlight: boolean; choices?: Choice[] }) {
   const pickLine = gradePickLine(grade, choices);
   return (
-    <div className={`flex-1 rounded-xl border px-3 py-2.5 ${highlight ? "border-[var(--accent)] bg-[rgba(94,242,176,0.08)]" : "border-[var(--border)] bg-[var(--card-2)]"}`}>
+    <div className={`flex-1 rounded-xl border px-3 py-2.5 ${highlight ? "border-[var(--accent)] bg-[rgba(240,197,96,0.10)]" : "border-[var(--border)] bg-[var(--card-2)]"}`}>
       <div className={`text-[12px] font-bold ${highlight ? "text-[var(--accent)]" : ""}`}>{name}</div>
       <div className="tnum mt-1.5 text-2xl font-extrabold">{grade ? grade.score.toFixed(2) : "—"}</div>
       <div className="text-[10px] text-[var(--muted-2)]">skill score</div>

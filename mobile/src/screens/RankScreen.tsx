@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useProfile } from "../lib/profile";
 import { conceptMastery } from "../lib/game/concepts";
 import { personalBests, tierFromRating } from "../lib/game/stats";
-import { C } from "../theme";
+import { C, F } from "../theme";
 
 export function RankScreen({ onDuel }: { onDuel?: () => void }) {
   const { profile: p } = useProfile();
@@ -15,8 +15,8 @@ export function RankScreen({ onDuel }: { onDuel?: () => void }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800", color: C.fg }}>Rank</Text>
-      <Text style={{ marginTop: 4, fontSize: 13, color: C.muted }}>Your tier, personal bests, and skill tree — judgment, never returns.</Text>
+      <Text style={{ fontSize: 22, color: C.fg, fontFamily: F.display, letterSpacing: -0.5 }}>Rank</Text>
+      <Text style={{ marginTop: 4, fontSize: 13, color: C.muted, fontFamily: F.body }}>Your tier, personal bests, and skill tree — judgment, never returns.</Text>
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 20, paddingVertical: 24, alignItems: "center", marginTop: 20 }}>
         <Text style={{ fontSize: 40 }}>{tier.emoji}</Text>
@@ -29,7 +29,7 @@ export function RankScreen({ onDuel }: { onDuel?: () => void }) {
 
       <Pressable
         onPress={() => { Haptics.selectionAsync(); onDuel?.(); }}
-        style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(94,242,176,0.06)", paddingHorizontal: 18, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+        style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(240,197,96,0.07)", paddingHorizontal: 18, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
       >
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: "800", color: C.fg }}>⚔️  Duel someone</Text>

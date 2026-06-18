@@ -5,7 +5,7 @@ import { Confetti } from "./Confetti";
 import { CountUp } from "./CountUp";
 import { ShareCard } from "./ShareCard";
 import { useProfile } from "@/lib/profile/useProfile";
-import { hasPlayed, recordResult, type JournalEntry } from "@/lib/profile/store";
+import { hasPlayed, loadProfile, markMilestonesSeen, recordResult, type JournalEntry, type JournalSnapshot } from "@/lib/profile/store";
 import { isProvisional } from "@/lib/game/rating";
 import { calibrationCredit } from "@/lib/game/calibration";
 import { todayKey } from "@/lib/game/seed";
@@ -14,6 +14,11 @@ import { conceptsForProblem } from "@/lib/game/concepts";
 import { verdict, transferableSkill, type VerdictTone } from "@/lib/game/progress";
 import { getDeviceId } from "@/lib/device-id";
 import { COACH } from "@/lib/coach";
+import { detectNewMilestones, streakUpdatePreview } from "@/lib/game/milestones";
+import { utcResetLabel, secsToUtcMidnight, formatCountdown } from "@/lib/game/utc-reset";
+import { HelpTip } from "./HelpTip";
+import { MilestoneModal } from "./MilestoneModal";
+import { PostDailyCTAs } from "./PostDailyCTAs";
 import type { ChoiceId, DailyProblem, GradeResult } from "@/lib/game/types";
 import type { Depth } from "@/lib/ai/grade";
 
@@ -38,6 +43,7 @@ export function DailyGame() {
 
   const [result, setResult] = useState<GradeResult | null>(null);
   const [ratingFrom, setRatingFrom] = useState(profile.rating);
+  const [milestones, setMilestones] = useState<ReturnType<typeof detectNewMilestones>>([]);
 
   const today = todayKey();
   const playedToday = useMemo(() => hasPlayed(profile, today), [profile, today]);
@@ -87,6 +93,16 @@ export function DailyGame() {
       if (data.error) { setError(data.error); setPhase("commit"); return; }
       setResult(data);
 
+      const snapshot: JournalSnapshot = {
+        explanation: data.explanation,
+        series: problem.series,
+        continuation: data.reveal.continuation,
+        horizonLabel: problem.horizonLabel,
+        prompt: problem.prompt,
+        problemType: problem.type,
+        crowd: data.crowd,
+      };
+
       const entry: JournalEntry = {
         date: problem.date,
         problemId: problem.id,
@@ -106,8 +122,17 @@ export function DailyGame() {
         forwardReturnPct: data.reveal.forwardReturnPct,
         difficulty: problem.difficulty,
         concepts: conceptsForProblem(problem),
+        snapshot,
       };
+      const before = loadProfile();
+      const streakPreview = streakUpdatePreview(before, problem.date);
       recordResult(entry);
+      const after = loadProfile();
+      const ms = detectNewMilestones(before, after, { usedFreeze: streakPreview.usedFreeze });
+      if (ms.length) {
+        markMilestonesSeen(ms.map((m) => m.id));
+        setMilestones(ms);
+      }
       vibrate(data.earned ? [0, 60, 30, 120] : 30);
       setPhase("reveal");
     } catch {
@@ -120,20 +145,29 @@ export function DailyGame() {
   if (phase === "loading" || !problem) return <Skeleton />;
 
   if (phase === "done-today" && todayEntry) {
-    return <AlreadyPlayed entry={todayEntry} streak={profile.streak} rating={profile.rating} />;
+    return (
+      <>
+        <MilestoneModal items={milestones} onDismiss={() => setMilestones([])} />
+        <AlreadyPlayed entry={todayEntry} streak={profile.streak} rating={profile.rating} result={result} />
+      </>
+    );
   }
 
   if (phase === "reveal" && result) {
     return (
-      <Reveal
-        problem={problem}
-        result={result}
-        ratingFrom={ratingFrom}
-        streak={profile.streak}
-        choice={choice!}
-        depth={depth}
-        setDepth={setDepth}
-      />
+      <>
+        <MilestoneModal items={milestones} onDismiss={() => setMilestones([])} />
+        <Reveal
+          problem={problem}
+          result={result}
+          ratingFrom={ratingFrom}
+          streak={profile.streak}
+          choice={choice!}
+          depth={depth}
+          setDepth={setDepth}
+          todayEntry={todayEntry ?? undefined}
+        />
+      </>
     );
   }
 
@@ -146,7 +180,7 @@ export function DailyGame() {
       <div className="card mt-4 overflow-hidden">
         <div className="flex items-center justify-between px-4 pt-4">
           <DifficultyChip d={problem.difficulty} />
-          <span className="text-[11px] text-[var(--muted-2)]">Anonymized · {problem.horizonLabel} ahead</span>
+          <span className="text-[11px] text-[var(--muted-2)]">Anonymized · {problem.horizonLabel} ahead <HelpTip term="horizon" /></span>
         </div>
         <div className="px-2 pt-2">
           <SparkChart series={problem.series} />
@@ -172,12 +206,12 @@ export function DailyGame() {
               className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition"
               style={{
                 borderColor: sel ? "var(--accent)" : "var(--border)",
-                background: sel ? "rgba(94,242,176,0.08)" : "var(--card)",
+                background: sel ? "rgba(240,197,96,0.10)" : "var(--card)",
               }}
             >
               <span
                 className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-bold"
-                style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#062013" : "var(--muted)" }}
+                style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#3a2c08" : "var(--muted)" }}
               >
                 {c.id}
               </span>
@@ -189,7 +223,7 @@ export function DailyGame() {
 
       <div className="card mt-5 px-4 py-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-[var(--muted)]">How sure are you?</span>
+          <span className="text-sm text-[var(--muted)]">How sure are you? <HelpTip term="confidence" /></span>
           <span className="tnum text-2xl font-bold" style={{ color: confColor(confidence) }}>{confidence}%</span>
         </div>
         <input
@@ -208,7 +242,7 @@ export function DailyGame() {
       </div>
 
       <div className="card mt-4 px-4 py-4">
-        <div className="text-sm font-medium text-[var(--fg)]">What are you seeing?</div>
+        <div className="text-sm font-medium text-[var(--fg)]">What are you seeing? <HelpTip term="chips" /></div>
         <p className="mt-1 text-[12px] text-[var(--muted)]">Tap what stands out — no essay required. Add your own words if you want.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -226,7 +260,7 @@ export function DailyGame() {
                 className="rounded-full border px-3 py-1.5 text-[13px] transition"
                 style={{
                   borderColor: sel ? "var(--accent)" : "var(--border)",
-                  background: sel ? "rgba(94,242,176,0.12)" : "var(--card-2)",
+                  background: sel ? "rgba(240,197,96,0.14)" : "var(--card-2)",
                   color: sel ? "var(--accent)" : "var(--fg)",
                 }}
               >
@@ -269,12 +303,11 @@ export function DailyGame() {
       <p className="mt-3 text-center text-[11px] leading-relaxed text-[var(--muted-2)]">
         Educational only — never buy/sell advice. We grade your decision, not the outcome.
       </p>
+      <p className="mt-2 text-center text-[11px] text-[var(--muted-2)]">{utcResetLabel()}</p>
     </div>
   );
 }
 
-// helper: read profile synchronously once for the initial phase decision
-import { loadProfile } from "@/lib/profile/store";
 function loadOnce() { return loadProfile(); }
 
 // ── sub-views ────────────────────────────────────────────────────────────────
@@ -325,9 +358,9 @@ function verdictToneCss(tone: VerdictTone): string {
 }
 
 function Reveal({
-  problem, result, ratingFrom, streak, choice, depth, setDepth,
+  problem, result, ratingFrom, streak, choice, depth, setDepth, todayEntry,
 }: {
-  problem: DailyProblem; result: GradeResult; ratingFrom: number; streak: number; choice: ChoiceId; depth: Depth; setDepth: (d: Depth) => void;
+  problem: DailyProblem; result: GradeResult; ratingFrom: number; streak: number; choice: ChoiceId; depth: Depth; setDepth: (d: Depth) => void; todayEntry?: JournalEntry;
 }) {
   const r = result.reveal;
   const up = r.forwardReturnPct >= 0;
@@ -359,9 +392,9 @@ function Reveal({
 
       {/* three-axis scorecard */}
       <div className="mt-5 grid grid-cols-3 gap-2">
-        <Score label="Outcome" emoji={result.correct ? "🟩" : "🟥"} sub={result.correct ? "Correct" : "Missed"} weight="15%" />
-        <Score label="Calibration" emoji={calib > 0.7 ? "🟩" : calib > 0.45 ? "🟨" : "🟥"} sub={`Brier ${result.brier.toFixed(2)}`} weight="45%" />
-        <Score label="Reasoning" emoji={result.reasoning >= 0.66 ? "🟩" : result.reasoning >= 0.4 ? "🟨" : "🟥"} sub={`${Math.round(result.reasoning * 100)}/100`} weight="40%" />
+        <Score label="Outcome" emoji={result.correct ? "🟩" : "🟥"} sub={result.correct ? "Correct" : "Missed"} weight="15%" tip="outcome" />
+        <Score label="Calibration" emoji={calib > 0.7 ? "🟩" : calib > 0.45 ? "🟨" : "🟥"} sub={`Brier ${result.brier.toFixed(2)}`} weight="45%" tip="calibration" />
+        <Score label="Reasoning" emoji={result.reasoning >= 0.66 ? "🟩" : result.reasoning >= 0.4 ? "🟨" : "🟥"} sub={`${Math.round(result.reasoning * 100)}/100`} weight="40%" tip="reasoning" />
       </div>
 
       {/* reveal chart + identity */}
@@ -401,7 +434,7 @@ function Reveal({
               <div key={c.id} className="flex items-center gap-2 text-[12px]">
                 <span className="w-4 font-bold" style={{ color: isMine ? "var(--accent)" : "var(--muted)" }}>{c.id}</span>
                 <div className="relative h-6 flex-1 overflow-hidden rounded-lg bg-[var(--card-2)]">
-                  <div className="h-full rounded-lg" style={{ width: `${pct}%`, background: isAns ? "var(--accent)" : "var(--card-2)", borderRight: isAns ? "none" : "1px solid var(--border)", backgroundColor: isAns ? "var(--accent)" : "#2c3543" }} />
+                  <div className="h-full rounded-lg" style={{ width: `${pct}%`, background: isAns ? "var(--accent)" : "var(--card-2)", borderRight: isAns ? "none" : "1px solid var(--border)", backgroundColor: isAns ? "var(--accent)" : "#3a2e1c" }} />
                   <span className="absolute inset-y-0 left-2 flex items-center text-[11px] text-[var(--fg)]">{c.label}</span>
                   <span className="absolute inset-y-0 right-2 flex items-center tnum text-[11px] font-semibold">{pct}%</span>
                 </div>
@@ -423,7 +456,7 @@ function Reveal({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-3.5">
+      <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-3.5">
         <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">🎯 What you just practiced</div>
         <div className="mt-1 text-[15px] font-bold text-[var(--fg)]">{skill.title}</div>
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{skill.line}</p>
@@ -441,6 +474,8 @@ function Reveal({
         />
       </div>
 
+      <PostDailyCTAs entry={todayEntry} result={result} />
+
       <p className="mt-4 text-center text-[11px] text-[var(--muted-2)]">
         {result.crowdReal
           ? `Crowd split from ${result.crowdSampleSize} real answers today.`
@@ -453,11 +488,14 @@ function Reveal({
   );
 }
 
-function Score({ label, emoji, sub, weight }: { label: string; emoji: string; sub: string; weight: string }) {
+function Score({ label, emoji, sub, weight, tip }: { label: string; emoji: string; sub: string; weight: string; tip?: "outcome" | "calibration" | "reasoning" }) {
   return (
     <div className="card px-2 py-3 text-center">
       <div className="text-2xl">{emoji}</div>
-      <div className="mt-1 text-[11px] font-semibold">{label}</div>
+      <div className="mt-1 flex items-center justify-center gap-1 text-[11px] font-semibold">
+        {label}
+        {tip && <HelpTip term={tip === "calibration" ? "brier" : tip === "reasoning" ? "reasoning" : "outcome"} />}
+      </div>
       <div className="tnum text-[10px] text-[var(--muted)]">{sub}</div>
       <div className="mt-0.5 text-[9px] text-[var(--muted-2)]">weight {weight}</div>
     </div>
@@ -469,7 +507,7 @@ function DepthToggle({ depth, setDepth }: { depth: Depth; setDepth: (d: Depth) =
   return (
     <div className="flex rounded-lg bg-[var(--card-2)] p-0.5 text-[10px]">
       {opts.map((o) => (
-        <button key={o} onClick={() => setDepth(o)} className="rounded-md px-2 py-1 capitalize" style={{ background: depth === o ? "var(--accent)" : "transparent", color: depth === o ? "#062013" : "var(--muted)" }}>
+        <button key={o} onClick={() => setDepth(o)} className="rounded-md px-2 py-1 capitalize" style={{ background: depth === o ? "var(--accent)" : "transparent", color: depth === o ? "#3a2c08" : "var(--muted)" }}>
           {o}
         </button>
       ))}
@@ -477,7 +515,7 @@ function DepthToggle({ depth, setDepth }: { depth: Depth; setDepth: (d: Depth) =
   );
 }
 
-function AlreadyPlayed({ entry, streak, rating }: { entry: JournalEntry; streak: number; rating: number }) {
+function AlreadyPlayed({ entry, streak, rating, result }: { entry: JournalEntry; streak: number; rating: number; result: GradeResult | null }) {
   return (
     <div className="animate-rise pt-6 text-center">
       <div className="text-[12px] uppercase tracking-widest text-[var(--muted-2)]">You&apos;re done for today</div>
@@ -491,26 +529,19 @@ function AlreadyPlayed({ entry, streak, rating }: { entry: JournalEntry; streak:
         <div className="mt-2 text-[12px] text-[var(--muted-2)]">{entry.reasoningNotes}</div>
       </div>
       <Countdown />
-      <p className="mt-3 text-[12px] text-[var(--muted-2)]">One problem a day keeps the rating honest. See you tomorrow.</p>
+      <p className="mt-2 text-[12px] text-[var(--muted-2)]">{utcResetLabel()}</p>
+      <PostDailyCTAs entry={entry} result={result} />
     </div>
   );
 }
 
 function Countdown() {
-  const [s, setS] = useState(secsToMidnight());
+  const [s, setS] = useState(secsToUtcMidnight());
   useEffect(() => {
-    const t = setInterval(() => setS(secsToMidnight()), 1000);
+    const t = setInterval(() => setS(secsToUtcMidnight()), 1000);
     return () => clearInterval(t);
   }, []);
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  return <div className="tnum mt-6 text-2xl font-bold text-[var(--fg)]">{String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(sec).padStart(2, "0")}</div>;
-}
-
-function secsToMidnight() {
-  const now = new Date();
-  const mid = new Date(now);
-  mid.setUTCHours(24, 0, 0, 0);
-  return Math.max(0, Math.floor((mid.getTime() - now.getTime()) / 1000));
+  return <div className="tnum mt-6 text-2xl font-bold text-[var(--fg)]">{formatCountdown(s)}</div>;
 }
 
 function fmtDate(s: string) {

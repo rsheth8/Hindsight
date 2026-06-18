@@ -6,7 +6,8 @@ import { summarize } from "../lib/game/calibration";
 import { isProvisional, START_RATING } from "../lib/game/rating";
 import { skillTrend, insights, type Insight } from "../lib/game/progress";
 import { scheduleDailyReminder, cancelDailyReminder } from "../lib/notifications";
-import { C } from "../theme";
+import { Flame, Freeze } from "../components/Glyph";
+import { C, F } from "../theme";
 
 const REMINDER_HOURS = [8, 12, 18, 21];
 
@@ -52,11 +53,11 @@ export function YouScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800", color: C.fg }}>You</Text>
+      <Text style={{ fontSize: 22, color: C.fg, fontFamily: F.display, letterSpacing: -0.5 }}>You</Text>
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 20, paddingVertical: 24, alignItems: "center", marginTop: 16 }}>
-        <Text style={{ fontSize: 11, letterSpacing: 2, color: C.muted2, textTransform: "uppercase" }}>Investing rating</Text>
-        <Text style={{ fontSize: 64, fontWeight: "800", color: C.accent, fontVariant: ["tabular-nums"], marginTop: 4 }}>
+        <Text style={{ fontSize: 11, letterSpacing: 2, color: C.muted2, textTransform: "uppercase", fontFamily: F.body }}>Investing rating</Text>
+        <Text style={{ fontSize: 64, color: C.accent, fontFamily: F.display, letterSpacing: -1.5, fontVariant: ["tabular-nums"], marginTop: 4 }}>
           {p.rating}{prov ? <Text style={{ fontSize: 30, color: C.muted2 }}>?</Text> : null}
         </Text>
         <Text style={{ marginTop: 2, fontSize: 12, color: C.muted }}>
@@ -65,8 +66,8 @@ export function YouScreen() {
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
-        <Stat half label="🔥 Streak" value={String(p.streak)} />
-        <Stat half label="🧊 Freezes" value={String(p.streakFreezes ?? 1)} />
+        <Stat half icon={<Flame size={11} />} label="Streak" value={String(p.streak)} />
+        <Stat half icon={<Freeze size={12} />} label="Freezes" value={String(p.streakFreezes ?? 1)} />
         <Stat half label="Best streak" value={String(p.longestStreak)} />
         <Stat half label="Calls" value={String(p.gradedCount)} />
       </View>
@@ -136,7 +137,7 @@ export function YouScreen() {
               const sel = (p.reminderHour ?? 18) === h;
               return (
                 <Pressable key={h} onPress={() => updateSettings({ reminderHour: h, reminderMinute: 0 })}
-                  style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.12)" : C.card2 }}>
+                  style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.14)" : C.card2 }}>
                   <Text style={{ fontSize: 13, fontWeight: "600", color: sel ? C.accent : C.fg }}>{h === 12 ? "12 pm" : h < 12 ? `${h} am` : `${h - 12} pm`}</Text>
                 </Pressable>
               );
@@ -163,11 +164,14 @@ export function YouScreen() {
   );
 }
 
-function Stat({ label, value, tone, half }: { label: string; value: string; tone?: "warn"; half?: boolean }) {
+function Stat({ label, value, tone, half, icon }: { label: string; value: string; tone?: "warn"; half?: boolean; icon?: React.ReactNode }) {
   return (
     <View style={{ flex: half ? undefined : 1, width: half ? "48%" : undefined, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12, alignItems: "center" }}>
-      <Text style={{ fontSize: 10, letterSpacing: 0.5, color: C.muted2, textTransform: "uppercase", textAlign: "center" }}>{label}</Text>
-      <Text style={{ marginTop: 2, fontSize: 18, fontWeight: "700", color: tone === "warn" ? C.warn : C.fg, fontVariant: ["tabular-nums"] }}>{value}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        {icon}
+        <Text style={{ fontSize: 10, letterSpacing: 0.5, color: C.muted2, textTransform: "uppercase", textAlign: "center", fontFamily: F.body }}>{label}</Text>
+      </View>
+      <Text style={{ marginTop: 2, fontSize: 18, color: tone === "warn" ? C.warn : C.fg, fontFamily: F.mono, fontVariant: ["tabular-nums"] }}>{value}</Text>
     </View>
   );
 }

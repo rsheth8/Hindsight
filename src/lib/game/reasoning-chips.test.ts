@@ -49,4 +49,18 @@ describe("reasoning-chips", () => {
     const problem = mockDailyProblem({ metrics: [] });
     expect(() => chipsForProblem(problem)).not.toThrow();
   });
+
+  it("emits type-specific chips for options drills", () => {
+    const problem = mockDailyProblem({ type: "options-greeks" });
+    const labels = chipsForProblem(problem).map((c) => c.label);
+    expect(labels).toContain("Theta / time decay");
+    expect(labels).toContain("Mixed signals");
+  });
+
+  it("emits type-specific chips for futures drills", () => {
+    const problem = mockDailyProblem({ type: "futures-basics" });
+    const labels = chipsForProblem(problem).map((c) => c.label);
+    expect(labels).toContain("Overnight gap risk");
+    expect(labels).toContain("Notional vs margin");
+  });
 });

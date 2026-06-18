@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "hindsight",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0a0c11",
+    "backgroundColor": "#0c0907",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "game.hindsight.app",
@@ -31,7 +31,7 @@
     "android": {
       "package": "game.hindsight.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0a0c11",
+        "backgroundColor": "#0c0907",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -45,7 +45,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0a0c11",
+          "backgroundColor": "#0c0907",
           "image": "./assets/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain"
@@ -56,7 +56,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#5ef2b0"
+          "color": "#f0c560"
         }
       ]
     ]

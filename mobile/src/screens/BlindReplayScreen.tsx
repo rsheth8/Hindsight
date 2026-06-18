@@ -192,7 +192,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
           <SparkChart series={problem.series} continuation={r.continuation} width={chartW} />
         </View>
         <Text style={{ marginTop: 12, fontSize: 13, color: C.fg }}>{COACH.emoji} {COACH.name}: {result.explanation}</Text>
-        <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(94,242,176,0.06)", paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
+        <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(240,197,96,0.07)", paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
           <Text style={{ fontSize: 11, letterSpacing: 1, color: C.accent, textTransform: "uppercase", fontWeight: "700" }}>🎯 What you practiced</Text>
           <Text style={{ fontSize: 15, fontWeight: "700", color: C.fg, marginTop: 4 }}>{skill.title}</Text>
           <Text style={{ fontSize: 13, lineHeight: 19, color: C.muted, marginTop: 3 }}>{skill.line}</Text>
@@ -231,7 +231,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
           const sel = choice === c.id;
           return (
             <Pressable key={c.id} onPress={() => setChoice(c.id)}
-              style={{ borderRadius: 14, borderWidth: 1, padding: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+              style={{ borderRadius: 14, borderWidth: 1, padding: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
               <Text style={{ color: C.fg }}>{c.id}. {c.label}</Text>
             </Pressable>
           );
@@ -248,7 +248,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
           const sel = selectedChips.includes(chip.label);
           return (
             <Pressable key={chip.id} onPress={() => setSelectedChips((p) => sel ? p.filter((l) => l !== chip.label) : [...p, chip.label])}
-              style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.12)" : C.card2 }}>
+              style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.14)" : C.card2 }}>
               <Text style={{ fontSize: 13, color: sel ? C.accent : C.fg }}>{chip.label}</Text>
             </Pressable>
           );

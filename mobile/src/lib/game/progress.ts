@@ -1,20 +1,14 @@
 /**
  * Progress & self-knowledge — the "I'm actually getting better at the real thing" engine.
- * Pure functions over the player's journal. Three jobs:
- *   1. skillTrend  — are calibration & reasoning improving over time? (recent vs early)
- *   2. insights    — personalized edge/leak detection ("you're 18% overconfident")
- *   3. transferableSkill / verdict — name the real-world skill + the luck-honest verdict
- *
- * These are what make a daily game feel like deliberate practice, not a slot machine.
+ * Pure functions over the player's journal. Platform-agnostic (no UI colors here).
  */
 import { C } from "../../theme";
-import type { JournalEntry } from "../profile";
+import type { JournalEntry } from "@/lib/profile";
 import type { DailyProblem, GradeResult } from "./types";
 import { calibrationCredit, calibrationSkill } from "./calibration";
+import { COACH } from "@/lib/coach";
 
 export type VerdictTone = "accent" | "warn" | "bad" | "fg";
-
-// ── reveal verdict: make the luck filter the emotional centerpiece ──────────────
 
 export interface Verdict { badge: string; tone: VerdictTone; line: string }
 
@@ -23,7 +17,7 @@ export function verdictToneColor(tone: VerdictTone): string {
 }
 
 export function verdict(result: Pick<GradeResult, "correct" | "earned" | "brier" | "reasoning">): Verdict {
-  const calib = calibrationCredit(result.brier); // 0–1, higher = better-sized confidence
+  const calib = calibrationCredit(result.brier);
   if (result.earned) {
     return { badge: "💎 EARNED", tone: "accent", line: "Right, well-reasoned, and properly confident. This is the kind of win that compounds in real life." };
   }
@@ -42,11 +36,34 @@ export function verdict(result: Pick<GradeResult, "correct" | "earned" | "brier"
   return { badge: "🎯 MISS", tone: "bad", line: "Wrong, and confident about it — the costliest combo. This is the exact habit the game is here to fix." };
 }
 
-// ── transferable skill: name the real-world rep you just did ─────────────────────
-
 export interface Skill { title: string; line: string }
 
 export function transferableSkill(problem: DailyProblem, result: GradeResult): Skill {
+  if (problem.type === "spot-the-flaw") {
+    return {
+      title: "Reasoning hygiene",
+      line: "You practiced spotting narrative leaks before they cost real money — extrapolation, anchoring, and noise-as-signal.",
+    };
+  }
+  if (problem.type === "options-greeks") {
+    return {
+      title: "Greeks as risk language",
+      line: "Options aren't just directional bets. You practiced naming which Greek dominates — the skill behind sizing and hedging.",
+    };
+  }
+  if (problem.type === "futures-basics") {
+    return {
+      title: "Notional & leverage awareness",
+      line: "Futures amplify exposure through notional and gap risk. You practiced thinking in contract size, not just direction.",
+    };
+  }
+  if (problem.type === "calibration-bet") {
+    return {
+      title: "Base-rate calibration",
+      line: "You practiced sizing confidence to historical odds instead of story conviction — the core of good probabilistic thinking.",
+    };
+  }
+
   const s = problem.series;
   const trendUp = s[s.length - 1].v >= s[0].v;
   const fwd = result.reveal.forwardReturnPct;
@@ -61,14 +78,14 @@ export function transferableSkill(problem: DailyProblem, result: GradeResult): S
   return { title: "Sizing conviction to evidence", line: "The core skill of every good investor: matching how sure you are to how strong the evidence actually is." };
 }
 
-// ── skill trend: recent vs early ────────────────────────────────────────────────
-
 export interface SkillTrend {
   enough: boolean;
-  ratingSeries: number[];        // chronological ratingAfter values
-  ratingDelta: number;           // newest − oldest
-  calibNow: number; calibPrev: number;       // 0–100 calibration score per half
-  reasoningNow: number; reasoningPrev: number; // 0–100
+  ratingSeries: number[];
+  ratingDelta: number;
+  calibNow: number;
+  calibPrev: number;
+  reasoningNow: number;
+  reasoningPrev: number;
   verdict: "improving" | "steady" | "slipping" | "early";
   headline: string;
 }
@@ -76,7 +93,7 @@ export interface SkillTrend {
 const calibScore = (brier: number) => Math.round(calibrationSkill(brier) * 100);
 
 export function skillTrend(history: JournalEntry[]): SkillTrend {
-  const chrono = [...history].reverse(); // stored newest-first → oldest-first
+  const chrono = [...history].reverse();
   const n = chrono.length;
   const ratingSeries = chrono.map((h) => h.ratingAfter);
   const ratingDelta = n ? ratingSeries[n - 1] - ratingSeries[0] : 0;
@@ -105,23 +122,20 @@ export function skillTrend(history: JournalEntry[]): SkillTrend {
   return { enough: true, ratingSeries, ratingDelta, calibNow, calibPrev, reasoningNow, reasoningPrev, verdict, headline };
 }
 
-// ── insights: personalized edge & leak detection ────────────────────────────────
-
 export interface Insight { kind: "edge" | "leak" | "note"; icon: string; title: string; text: string }
 
 export function insights(history: JournalEntry[]): Insight[] {
   const n = history.length;
   if (n < 3) {
-    return [{ kind: "note", icon: "🧭", title: "Your patterns, soon", text: "Play a few more days and I'll surface your real tendencies — where you're overconfident, what you're good at, and how you're improving." }];
+    return [{ kind: "note", icon: COACH.emoji, title: `${COACH.name} — your patterns, soon`, text: "Play a few more days and I'll surface your real tendencies — where you're overconfident, what you're good at, and how you're improving." }];
   }
 
   const out: Insight[] = [];
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const accuracy = history.filter((h) => h.correct).length / n;
   const avgConf = avg(history.map((h) => h.confidence));
-  const overconf = avgConf - accuracy; // >0 overconfident
+  const overconf = avgConf - accuracy;
 
-  // 1) calibration leak/edge — the headline self-knowledge
   if (overconf > 0.1) {
     out.push({ kind: "leak", icon: "⚠️", title: "You run overconfident", text: `You average ${Math.round(avgConf * 100)}% sure but are right ${Math.round(accuracy * 100)}% of the time. Dialing confidence down ~${Math.round(overconf * 100)} points would lift your rating the fastest.` });
   } else if (overconf < -0.1) {
@@ -130,7 +144,6 @@ export function insights(history: JournalEntry[]): Insight[] {
     out.push({ kind: "edge", icon: "🎯", title: "Well-sized confidence", text: `Your confidence (${Math.round(avgConf * 100)}%) tracks your hit rate (${Math.round(accuracy * 100)}%). That calibration is the whole game.` });
   }
 
-  // 2) reasoning trajectory
   if (n >= 6) {
     const chrono = [...history].reverse();
     const half = Math.floor(n / 2);
@@ -140,7 +153,6 @@ export function insights(history: JournalEntry[]): Insight[] {
     else if (rPrev - rNow >= 12) out.push({ kind: "leak", icon: "✍️", title: "Reasoning slipping", text: `Your written reads have thinned out (${rPrev}→${rNow}). Spell out the evidence and the counter-case to climb.` });
   }
 
-  // 3) lucky vs earned among wins
   const wins = history.filter((h) => h.correct);
   if (wins.length >= 4) {
     const earnedRatio = wins.filter((h) => h.earned).length / wins.length;
@@ -148,7 +160,6 @@ export function insights(history: JournalEntry[]): Insight[] {
     else if (earnedRatio > 0.7) out.push({ kind: "edge", icon: "💎", title: "Your wins are earned", text: `${Math.round(earnedRatio * 100)}% of your correct calls were well-reasoned and well-sized. That's repeatable skill, not luck.` });
   }
 
-  // 4) by difficulty (needs the tag; older entries may lack it)
   const tagged = history.filter((h) => typeof h.difficulty === "number");
   if (tagged.length >= 6) {
     const hard = tagged.filter((h) => (h.difficulty as number) >= 0.7);

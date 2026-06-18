@@ -5,6 +5,7 @@
 import type { JournalEntry } from "@/lib/profile/store";
 import type { DailyProblem, GradeResult } from "./types";
 import { calibrationCredit, calibrationSkill } from "./calibration";
+import { COACH } from "@/lib/coach";
 
 export type VerdictTone = "accent" | "warn" | "bad" | "fg";
 
@@ -33,6 +34,31 @@ export function verdict(result: Pick<GradeResult, "correct" | "earned" | "brier"
 export interface Skill { title: string; line: string }
 
 export function transferableSkill(problem: DailyProblem, result: GradeResult): Skill {
+  if (problem.type === "spot-the-flaw") {
+    return {
+      title: "Reasoning hygiene",
+      line: "You practiced spotting narrative leaks before they cost real money — extrapolation, anchoring, and noise-as-signal.",
+    };
+  }
+  if (problem.type === "options-greeks") {
+    return {
+      title: "Greeks as risk language",
+      line: "Options aren't just directional bets. You practiced naming which Greek dominates — the skill behind sizing and hedging.",
+    };
+  }
+  if (problem.type === "futures-basics") {
+    return {
+      title: "Notional & leverage awareness",
+      line: "Futures amplify exposure through notional and gap risk. You practiced thinking in contract size, not just direction.",
+    };
+  }
+  if (problem.type === "calibration-bet") {
+    return {
+      title: "Base-rate calibration",
+      line: "You practiced sizing confidence to historical odds instead of story conviction — the core of good probabilistic thinking.",
+    };
+  }
+
   const s = problem.series;
   const trendUp = s[s.length - 1].v >= s[0].v;
   const fwd = result.reveal.forwardReturnPct;
@@ -96,7 +122,7 @@ export interface Insight { kind: "edge" | "leak" | "note"; icon: string; title: 
 export function insights(history: JournalEntry[]): Insight[] {
   const n = history.length;
   if (n < 3) {
-    return [{ kind: "note", icon: "🧭", title: "Your patterns, soon", text: "Play a few more days and I'll surface your real tendencies — where you're overconfident, what you're good at, and how you're improving." }];
+    return [{ kind: "note", icon: COACH.emoji, title: `${COACH.name} — your patterns, soon`, text: "Play a few more days and I'll surface your real tendencies — where you're overconfident, what you're good at, and how you're improving." }];
   }
 
   const out: Insight[] = [];

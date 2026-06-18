@@ -25,6 +25,52 @@ function parsePct(value: string): number {
 
 /** Derive tappable chips from metrics + the anonymized series. */
 export function chipsForProblem(problem: DailyProblem): ReasoningChip[] {
+  if (problem.type === "spot-the-flaw") {
+    return [
+      { id: "extrapolate", label: "Trend extrapolation" },
+      { id: "noise", label: "Noise as signal" },
+      { id: "anchor", label: "Anchoring to past price" },
+      { id: "recency", label: "Recency bias" },
+      { id: "macro", label: "Ignoring macro context" },
+      ...JUDGMENT_CHIPS,
+    ];
+  }
+
+  if (problem.type === "options-greeks") {
+    return [
+      { id: "theta", label: "Theta / time decay" },
+      { id: "delta", label: "Delta exposure" },
+      { id: "gamma", label: "Gamma risk near expiry" },
+      { id: "vega", label: "IV / vega crush" },
+      { id: "defined-risk", label: "Defined vs unlimited risk" },
+      ...JUDGMENT_CHIPS,
+    ];
+  }
+
+  if (problem.type === "futures-basics") {
+    return [
+      { id: "gap", label: "Overnight gap risk" },
+      { id: "notional", label: "Notional vs margin" },
+      { id: "roll", label: "Roll / curve drag" },
+      { id: "hedge", label: "Imperfect hedge" },
+      { id: "leverage", label: "Leverage sizing" },
+      ...JUDGMENT_CHIPS,
+    ];
+  }
+
+  if (problem.type === "calibration-bet") {
+    return [
+      { id: "base-rate", label: "Base rate matters" },
+      { id: "murky", label: "Genuinely uncertain" },
+      { id: "edge", label: "Thin edge only" },
+      ...JUDGMENT_CHIPS,
+    ];
+  }
+
+  return chipsForChartProblem(problem);
+}
+
+function chipsForChartProblem(problem: DailyProblem): ReasoningChip[] {
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
   // The return label carries the visible window length ("6-month return", "2-month
   // return" in blind replay), so match it by substring rather than an exact key.

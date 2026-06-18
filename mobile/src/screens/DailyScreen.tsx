@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, Text, TextInput, View, useWindowDimensions } from "react-native";
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
@@ -7,10 +7,16 @@ import { captureRef } from "react-native-view-shot";
 import { SparkChart } from "../components/SparkChart";
 import { CountUp } from "../components/CountUp";
 import { Confetti } from "../components/Confetti";
+import { HMark } from "../components/HMark";
+import { ScoreRing } from "../components/ScoreRing";
+import { CalibrationBar, calibrationPosition } from "../components/CalibrationBar";
+import { Rise, Pop } from "../components/Animate";
+import { Flame, Freeze } from "../components/Glyph";
 import { ShareResultCard, shareRow } from "../components/ShareResultCard";
-import { useProfile, hasPlayed, type JournalEntry } from "../lib/profile";
+import { useProfile, hasPlayed, type JournalEntry, type JournalSnapshot } from "../lib/profile";
 import { fetchDaily, gradeSubmission } from "../lib/api";
 import { getDeviceId } from "../lib/device-id";
+import { getPreferredDepth } from "../lib/prefs";
 import { isProvisional } from "../lib/game/rating";
 import { buildReasoning, chipsForProblem, hasReasoning } from "../lib/game/reasoning-chips";
 import { conceptsForProblem } from "../lib/game/concepts";
@@ -19,11 +25,14 @@ import { verdict as getVerdict, transferableSkill, verdictToneColor } from "../l
 import { todayKey } from "../lib/game/seed";
 import type { ChoiceId, DailyProblem, GradeResult } from "../lib/game/types";
 import type { Depth } from "../lib/grade-types";
-import { C } from "../theme";
+import { utcResetLabel, secsToUtcMidnight, formatCountdown } from "../lib/game/utc-reset";
+import { C, F } from "../theme";
 
 type Phase = "loading" | "commit" | "grading" | "reveal";
 
-export function DailyScreen() {
+type NavDest = "practice" | "rank" | "journal" | "learn" | "duel";
+
+export function DailyScreen({ onNavigate }: { onNavigate?: (tab: NavDest) => void }) {
   const { profile, ready, record } = useProfile();
   const { width } = useWindowDimensions();
   const chartW = Math.max(280, Math.min(width, 440) - 48);
@@ -65,6 +74,8 @@ export function DailyScreen() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => { getPreferredDepth().then((d) => { if (d) setDepth(d); }); }, []);
+
   async function submit() {
     if (!choice || !problem) return;
     setRatingFrom(profile.rating);
@@ -81,6 +92,15 @@ export function DailyScreen() {
         deviceId: await getDeviceId(),
       });
       setResult(data);
+      const snapshot: JournalSnapshot = {
+        explanation: data.explanation,
+        series: problem.series,
+        continuation: data.reveal.continuation,
+        horizonLabel: problem.horizonLabel,
+        prompt: problem.prompt,
+        problemType: problem.type,
+        crowd: data.crowd,
+      };
       const entry: JournalEntry = {
         date: problem.date,
         problemId: problem.id,
@@ -100,6 +120,7 @@ export function DailyScreen() {
         forwardReturnPct: data.reveal.forwardReturnPct,
         difficulty: problem.difficulty,
         concepts: conceptsForProblem(problem),
+        snapshot,
       };
       await record(entry);
       Haptics.notificationAsync(data.earned ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
@@ -123,11 +144,11 @@ export function DailyScreen() {
 
   // already played → show today's result + countdown
   if (playedToday && phase !== "reveal" && todayEntry) {
-    return <AlreadyPlayed entry={todayEntry} streak={profile.streak} rating={profile.rating} />;
+    return <AlreadyPlayed entry={todayEntry} streak={profile.streak} rating={profile.rating} onNavigate={onNavigate} />;
   }
 
   if (phase === "reveal" && result) {
-    return <Reveal problem={problem} result={result} ratingFrom={ratingFrom} streak={profile.streak} choice={choice!} depth={depth} setDepth={setDepth} chartW={chartW} />;
+    return <Reveal problem={problem} result={result} ratingFrom={ratingFrom} streak={profile.streak} choice={choice!} confidence={confidence / 100} depth={depth} setDepth={setDepth} chartW={chartW} onNavigate={onNavigate} />;
   }
 
   // ── commit screen ──
@@ -154,14 +175,23 @@ export function DailyScreen() {
         </View>
       </View>
 
-      <Text style={{ marginTop: 20, fontSize: 15, fontWeight: "600", color: C.fg }}>{problem.prompt}</Text>
+      <Text style={{ marginTop: 20, fontSize: 16, color: C.fg, fontFamily: F.bodySemi }}>{problem.prompt}</Text>
+
+      {profile.gradedCount === 0 && (
+        <View style={{ marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(240,197,96,0.07)", paddingHorizontal: 14, paddingVertical: 12 }}>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: C.fg, fontFamily: F.body }}>
+            <Text style={{ fontFamily: F.bodySemi }}>👋 Your first call. </Text>
+            Pick the outcome you&apos;d bet on, set how sure you are, and tap what you noticed — then lock it in.
+          </Text>
+        </View>
+      )}
 
       <View style={{ marginTop: 12, gap: 8 }}>
         {problem.choices.map((c) => {
           const sel = choice === c.id;
           return (
             <Pressable key={c.id} onPress={() => { setChoice(c.id); Haptics.selectionAsync(); }}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
               <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: sel ? C.accent : C.card2 }}>
                 <Text style={{ fontWeight: "700", fontSize: 13, color: sel ? C.accentInk : C.muted }}>{c.id}</Text>
               </View>
@@ -173,8 +203,8 @@ export function DailyScreen() {
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 20 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-          <Text style={{ fontSize: 14, color: C.muted }}>How sure are you?</Text>
-          <Text style={{ fontSize: 24, fontWeight: "800", color: confColor(confidence), fontVariant: ["tabular-nums"] }}>{confidence}%</Text>
+          <Text style={{ fontSize: 14, color: C.muted, fontFamily: F.body }}>How sure are you?</Text>
+          <Text style={{ fontSize: 26, color: confColor(confidence), fontFamily: F.display, fontVariant: ["tabular-nums"] }}>{confidence}%</Text>
         </View>
         <Slider style={{ marginTop: 10 }} minimumValue={33} maximumValue={99} step={1} value={confidence}
           onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} maximumTrackTintColor={C.card2} thumbTintColor={C.fg} />
@@ -195,7 +225,7 @@ export function DailyScreen() {
                 setSelectedChips((prev) => sel ? prev.filter((l) => l !== chip.label) : [...prev, chip.label]);
                 Haptics.selectionAsync();
               }}
-                style={{ borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.12)" : C.card2 }}>
+                style={{ borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.14)" : C.card2 }}>
                 <Text style={{ fontSize: 13, color: sel ? C.accent : C.fg }}>{chip.label}</Text>
               </Pressable>
             );
@@ -220,7 +250,7 @@ export function DailyScreen() {
 
       <Pressable disabled={!canSubmit || grading} onPress={submit}
         style={{ marginTop: 16, borderRadius: 14, paddingVertical: 16, alignItems: "center", backgroundColor: C.accent, opacity: !canSubmit || grading ? 0.4 : 1 }}>
-        <Text style={{ fontWeight: "700", fontSize: 16, color: C.accentInk }}>{grading ? "Grading your judgment…" : "Lock in your call"}</Text>
+        <Text style={{ fontSize: 16, color: C.accentInk, fontFamily: F.bodySemi }}>{grading ? "Grading your judgment…" : "Lock in your call"}</Text>
       </Pressable>
       <Text style={{ marginTop: 12, textAlign: "center", fontSize: 11, color: C.muted2, lineHeight: 16 }}>
         Educational only — never buy/sell advice. We grade your decision, not the outcome.
@@ -235,24 +265,32 @@ function TopBar({ rating, gradedCount, streak, freezes }: { rating: number; grad
   const prov = isProvisional(gradedCount);
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-      <View>
-        <Text style={{ fontSize: 11, letterSpacing: 1, color: C.muted2, textTransform: "uppercase" }}>Hindsight · Daily</Text>
-        <Text style={{ fontSize: 13, color: C.muted }}>Read the setup. Make the call.</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+        <HMark size={30} />
+        <View>
+          <Text style={{ fontSize: 19, fontFamily: F.display, letterSpacing: -0.5 }}>
+            <Text style={{ color: C.fg }}>hind</Text><Text style={{ color: C.accent }}>sight</Text>
+          </Text>
+          <Text style={{ fontSize: 11, color: C.muted2, marginTop: -1, fontFamily: F.body }}>Read the setup. Make the call.</Text>
+        </View>
       </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <Pill label="🔥 Streak" value={String(streak)} />
-        {freezes > 0 && <Pill label="🧊" value={String(freezes)} />}
+        <Pill icon={<Flame size={10} />} label="Streak" value={String(streak)} />
+        {freezes > 0 && <Pill icon={<Freeze size={11} />} value={String(freezes)} />}
         <Pill label="Rating" value={prov ? `${rating}?` : String(rating)} accent />
       </View>
     </View>
   );
 }
 
-function Pill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Pill({ label, value, accent, icon }: { label?: string; value: string; accent?: boolean; icon?: React.ReactNode }) {
   return (
     <View style={{ borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center" }}>
-      <Text style={{ fontSize: 9, letterSpacing: 0.5, color: C.muted2, textTransform: "uppercase" }}>{label}</Text>
-      <Text style={{ fontSize: 16, fontWeight: "700", color: accent ? C.accent : C.fg, fontVariant: ["tabular-nums"] }}>{value}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, minHeight: 12 }}>
+        {icon}
+        {label ? <Text style={{ fontSize: 9, letterSpacing: 0.5, color: C.muted2, textTransform: "uppercase", fontFamily: F.body }}>{label}</Text> : null}
+      </View>
+      <Text style={{ fontSize: 16, color: accent ? C.accent : C.fg, fontFamily: F.mono, fontVariant: ["tabular-nums"] }}>{value}</Text>
     </View>
   );
 }
@@ -272,8 +310,8 @@ function confColor(c: number) {
   return C.accent;
 }
 
-function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, chartW }: {
-  problem: DailyProblem; result: GradeResult; ratingFrom: number; streak: number; choice: ChoiceId; depth: Depth; setDepth: (d: Depth) => void; chartW: number;
+function Reveal({ problem, result, ratingFrom, streak, choice, confidence, depth, setDepth, chartW, onNavigate }: {
+  problem: DailyProblem; result: GradeResult; ratingFrom: number; streak: number; choice: ChoiceId; confidence: number; depth: Depth; setDepth: (d: Depth) => void; chartW: number; onNavigate?: (t: NavDest) => void;
 }) {
   const r = result.reveal;
   const up = r.forwardReturnPct >= 0;
@@ -314,21 +352,48 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
       {result.earned && <Confetti />}
 
       <View style={{ alignItems: "center" }}>
-        <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: verdictToneColor(v.tone), paddingHorizontal: 14, paddingVertical: 5, marginBottom: 6 }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", letterSpacing: 1, color: verdictToneColor(v.tone) }}>{v.badge}</Text>
+        <Pop style={{ marginBottom: 14 }}>
+          <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: verdictToneColor(v.tone), paddingHorizontal: 14, paddingVertical: 5 }}>
+            <Text style={{ fontSize: 12, letterSpacing: 1, color: verdictToneColor(v.tone), fontFamily: F.mono }}>{v.badge}</Text>
+          </View>
+        </Pop>
+
+        {/* gap-as-hero — how sure → how right (see docs/design.md §5) */}
+        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 16 }}>
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ fontSize: 10, letterSpacing: 0.8, color: C.muted2, textTransform: "uppercase", fontFamily: F.body }}>How sure</Text>
+            <Text style={{ fontSize: 48, color: C.fg, fontFamily: F.display, letterSpacing: -1, fontVariant: ["tabular-nums"] }}>{Math.round(confidence * 100)}<Text style={{ fontSize: 22 }}>%</Text></Text>
+          </View>
+          <Text style={{ fontSize: 24, color: C.muted2, paddingBottom: 10, fontFamily: F.body }}>→</Text>
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ fontSize: 10, letterSpacing: 0.8, color: C.muted2, textTransform: "uppercase", fontFamily: F.body }}>How right</Text>
+            <Text style={{ fontSize: 48, color: C.accent, fontFamily: F.display, letterSpacing: -1, fontVariant: ["tabular-nums"] }}>{Math.round(calib * 100)}<Text style={{ fontSize: 22 }}>%</Text></Text>
+          </View>
         </View>
-        <CountUp from={ratingFrom} to={result.newRating} style={{ fontSize: 64, fontWeight: "800", letterSpacing: -1.5, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }} />
-        <Text style={{ marginTop: 2, fontSize: 14, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }}>
-          {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta} rating · 🔥 {streak}
-        </Text>
-        <Text style={{ marginTop: 10, fontSize: 13, lineHeight: 19, color: C.muted, textAlign: "center", paddingHorizontal: 8 }}>{v.line}</Text>
+
+        <View style={{ marginTop: 18, alignItems: "center" }}>
+          <CalibrationBar position={calibrationPosition(confidence, result.correct)} width={chartW} />
+        </View>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 16 }}>
+          <CountUp from={ratingFrom} to={result.newRating} style={{ fontSize: 26, color: C.fg, fontFamily: F.display, fontVariant: ["tabular-nums"] }} />
+          <Text style={{ fontSize: 13, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontFamily: F.mono, fontVariant: ["tabular-nums"] }}>
+            {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta}
+          </Text>
+          <Flame size={13} />
+          <Text style={{ fontSize: 13, color: C.fg, fontFamily: F.mono, fontVariant: ["tabular-nums"] }}>{streak}</Text>
+        </View>
+        <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 19, color: C.muted, textAlign: "center", paddingHorizontal: 8, fontFamily: F.body }}>{v.line}</Text>
       </View>
 
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 20 }}>
-        <Score label="Outcome" emoji={result.correct ? "🟩" : "🟥"} sub={result.correct ? "Correct" : "Missed"} weight="15%" />
-        <Score label="Calibration" emoji={calib > 0.8 ? "🟩" : calib > 0.55 ? "🟨" : "🟥"} sub={`Brier ${result.brier.toFixed(2)}`} weight="45%" />
-        <Score label="Reasoning" emoji={result.reasoning >= 0.66 ? "🟩" : result.reasoning >= 0.4 ? "🟨" : "🟥"} sub={`${Math.round(result.reasoning * 100)}/100`} weight="40%" />
-      </View>
+      {/* grading rings — Outcome / Calibration / Reasoning (replaces emoji squares) */}
+      <Rise delay={80}>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 22, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingVertical: 14 }}>
+          <ScoreRing label="Outcome" value={1} weight="15%" color={result.correct ? C.accent : C.bad} delay={120} />
+          <ScoreRing label="Calibration" value={calib} weight="45%" color={calib > 0.66 ? C.accent : calib > 0.45 ? C.warn : C.bad} delay={220} />
+          <ScoreRing label="Reasoning" value={result.reasoning} weight="40%" color={result.reasoning >= 0.66 ? C.accent : result.reasoning >= 0.4 ? C.warn : C.bad} delay={320} />
+        </View>
+      </Rise>
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 20 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14 }}>
@@ -365,7 +430,7 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
               <View key={c.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={{ width: 16, fontWeight: "700", color: isMine ? C.accent : C.muted }}>{c.id}</Text>
                 <View style={{ flex: 1, height: 24, borderRadius: 8, backgroundColor: C.card2, overflow: "hidden", justifyContent: "center" }}>
-                  <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, backgroundColor: isAns ? C.accent : "#2c3543", borderRadius: 8 }} />
+                  <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, backgroundColor: isAns ? C.accent : "#3a2e1c", borderRadius: 8 }} />
                   <Text style={{ marginLeft: 8, fontSize: 11, color: isAns ? C.accentInk : C.fg }}>{c.label}</Text>
                   <Text style={{ position: "absolute", right: 8, fontSize: 11, fontWeight: "700", color: isAns ? C.accentInk : C.fg, fontVariant: ["tabular-nums"] }}>{pct}%</Text>
                 </View>
@@ -387,15 +452,18 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
       </View>
 
       {/* the transferable rep — why this made you better at the real thing */}
-      <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(94,242,176,0.06)", paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
+      <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(240,197,96,0.07)", paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
         <Text style={{ fontSize: 11, letterSpacing: 1, color: C.accent, textTransform: "uppercase", fontWeight: "700" }}>🎯 What you just practiced</Text>
         <Text style={{ fontSize: 15, fontWeight: "700", color: C.fg, marginTop: 4 }}>{skill.title}</Text>
         <Text style={{ fontSize: 13, lineHeight: 19, color: C.muted, marginTop: 3 }}>{skill.line}</Text>
       </View>
 
       <Pressable onPress={share} style={{ marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: "center", backgroundColor: C.accent }}>
-        <Text style={{ fontWeight: "700", fontSize: 16, color: C.accentInk }}>Share result</Text>
+        <Text style={{ fontSize: 16, color: C.accentInk, fontFamily: F.bodySemi }}>Share result</Text>
       </Pressable>
+
+      <NextSteps onNavigate={onNavigate} />
+
       <Text style={{ marginTop: 16, textAlign: "center", fontSize: 11, color: C.muted2 }}>
         {result.crowdReal
           ? `Crowd split from ${result.crowdSampleSize} real answers today.`
@@ -405,17 +473,6 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
         Anonymized large-cap history (total return) — decision dates are balanced across up / flat / down outcomes, so the answer isn&apos;t just &ldquo;stocks go up.&rdquo;
       </Text>
     </ScrollView>
-  );
-}
-
-function Score({ label, emoji, sub, weight }: { label: string; emoji: string; sub: string; weight: string }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 16, paddingVertical: 12, alignItems: "center" }}>
-      <Text style={{ fontSize: 22 }}>{emoji}</Text>
-      <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "700", color: C.fg }}>{label}</Text>
-      <Text style={{ fontSize: 10, color: C.muted, fontVariant: ["tabular-nums"] }}>{sub}</Text>
-      <Text style={{ marginTop: 2, fontSize: 9, color: C.muted2 }}>weight {weight}</Text>
-    </View>
   );
 }
 
@@ -432,28 +489,57 @@ function DepthToggle({ depth, setDepth }: { depth: Depth; setDepth: (d: Depth) =
   );
 }
 
-function AlreadyPlayed({ entry, streak, rating }: { entry: JournalEntry; streak: number; rating: number }) {
+function AlreadyPlayed({ entry, streak, rating, onNavigate }: { entry: JournalEntry; streak: number; rating: number; onNavigate?: (t: NavDest) => void }) {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 40, alignItems: "center" }}>
-      <Text style={{ fontSize: 12, letterSpacing: 2, color: C.muted2, textTransform: "uppercase" }}>You&apos;re done for today</Text>
-      <Text style={{ fontSize: 72, fontWeight: "800", color: C.accent, fontVariant: ["tabular-nums"], marginTop: 8 }}>{rating}</Text>
-      <Text style={{ marginTop: 2, fontSize: 14, color: C.muted }}>🔥 {streak}-day streak</Text>
+      <Text style={{ fontSize: 12, letterSpacing: 2, color: C.muted2, textTransform: "uppercase", fontFamily: F.body }}>You&apos;re done for today</Text>
+      <Text style={{ fontSize: 72, color: C.accent, fontFamily: F.display, letterSpacing: -2, fontVariant: ["tabular-nums"], marginTop: 8 }}>{rating}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+        <Flame size={14} />
+        <Text style={{ fontSize: 14, color: C.muted, fontFamily: F.body }}>{streak}-day streak</Text>
+      </View>
       <View style={{ alignSelf: "stretch", backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 24 }}>
-        <Text style={{ fontSize: 14, fontWeight: "700", color: C.fg }}>Today: {entry.company}</Text>
-        <Text style={{ marginTop: 4, fontSize: 13, color: C.muted }}>You called <Text style={{ fontWeight: "700", color: C.fg }}>{entry.choiceLabel}</Text> at {Math.round(entry.confidence * 100)}% — {entry.correct ? "correct" : "missed"} · {entry.ratingDelta >= 0 ? "+" : ""}{entry.ratingDelta} rating.</Text>
-        <Text style={{ marginTop: 8, fontSize: 12, color: C.muted2 }}>{entry.reasoningNotes}</Text>
+        <Text style={{ fontSize: 14, color: C.fg, fontFamily: F.bodySemi }}>Today: {entry.company}</Text>
+        <Text style={{ marginTop: 4, fontSize: 13, color: C.muted, fontFamily: F.body }}>You called <Text style={{ color: C.fg, fontFamily: F.bodySemi }}>{entry.choiceLabel}</Text> at {Math.round(entry.confidence * 100)}% — {entry.correct ? "correct" : "missed"} · {entry.ratingDelta >= 0 ? "+" : ""}{entry.ratingDelta} rating.</Text>
+        <Text style={{ marginTop: 8, fontSize: 12, color: C.muted2, fontFamily: F.body }}>{entry.reasoningNotes}</Text>
       </View>
       <Countdown />
-      <Text style={{ marginTop: 12, fontSize: 12, color: C.muted2, textAlign: "center" }}>One problem a day keeps the rating honest. See you tomorrow.</Text>
+      <Text style={{ marginTop: 8, fontSize: 12, color: C.muted2, textAlign: "center", fontFamily: F.body }}>{utcResetLabel()}</Text>
+      <View style={{ alignSelf: "stretch" }}>
+        <NextSteps onNavigate={onNavigate} heading="While you wait" />
+      </View>
     </ScrollView>
   );
 }
 
+/** Forward navigation after the daily — turns dead-ends into clear next actions. */
+function NextSteps({ onNavigate, heading = "Keep sharpening" }: { onNavigate?: (t: NavDest) => void; heading?: string }) {
+  if (!onNavigate) return null;
+  const items: { dest: NavDest; emoji: string; label: string }[] = [
+    { dest: "practice", emoji: "⚡", label: "Practice" },
+    { dest: "duel", emoji: "⚔️", label: "Duel" },
+    { dest: "journal", emoji: "📓", label: "Journal" },
+  ];
+  return (
+    <View style={{ marginTop: 24 }}>
+      <Text style={{ fontSize: 11, letterSpacing: 1, color: C.muted2, textTransform: "uppercase", fontFamily: F.body, marginBottom: 10 }}>{heading}</Text>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {items.map((it) => (
+          <Pressable key={it.dest} onPress={() => { Haptics.selectionAsync(); onNavigate(it.dest); }}
+            style={{ flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, paddingVertical: 14, alignItems: "center", gap: 5 }}>
+            <Text style={{ fontSize: 20 }}>{it.emoji}</Text>
+            <Text style={{ fontSize: 12, color: C.fg, fontFamily: F.bodyMed }}>{it.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function Countdown() {
-  const [s, setS] = useState(secsToMidnight());
-  useEffect(() => { const t = setInterval(() => setS(secsToMidnight()), 1000); return () => clearInterval(t); }, []);
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  return <Text style={{ marginTop: 24, fontSize: 26, fontWeight: "700", color: C.fg, fontVariant: ["tabular-nums"] }}>{p2(h)}:{p2(m)}:{p2(sec)}</Text>;
+  const [s, setS] = useState(secsToUtcMidnight());
+  useEffect(() => { const t = setInterval(() => setS(secsToUtcMidnight()), 1000); return () => clearInterval(t); }, []);
+  return <Text style={{ marginTop: 24, fontSize: 26, fontWeight: "700", color: C.fg, fontVariant: ["tabular-nums"] }}>{formatCountdown(s)}</Text>;
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -461,5 +547,4 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function p2(n: number) { return String(n).padStart(2, "0"); }
-function secsToMidnight() { const now = new Date(); const mid = new Date(now); mid.setUTCHours(24, 0, 0, 0); return Math.max(0, Math.floor((mid.getTime() - now.getTime()) / 1000)); }
 function fmtDate(s: string) { return new Date(s + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", year: "numeric" }); }

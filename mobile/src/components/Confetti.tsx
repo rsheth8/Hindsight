@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Animated, Dimensions, Easing, StyleSheet, View } from "react-native";
 
-const COLORS = ["#5ef2b0", "#ffb454", "#7aa2ff", "#ff6b81", "#eef2f7"];
+const COLORS = ["#f0c560", "#e89a4a", "#6f8cff", "#ff7a6b", "#f6ede0"];
 const { width: SW, height: SH } = Dimensions.get("window");
 
 type Bit = {

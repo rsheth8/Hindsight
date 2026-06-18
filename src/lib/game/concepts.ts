@@ -29,6 +29,11 @@ function parsePct(value: string): number {
 
 /** Tag a problem from its visible setup (no look-ahead). */
 export function conceptsForProblem(problem: DailyProblem): ConceptId[] {
+  if (problem.type === "spot-the-flaw") return ["sizing", "reversal"];
+  if (problem.type === "options-greeks") return ["volatility", "sizing"];
+  if (problem.type === "futures-basics") return ["volatility", "sizing"];
+  if (problem.type === "calibration-bet") return ["sizing"];
+
   const tags = new Set<ConceptId>();
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
   // Return label carries the visible window length — match by substring (see metrics.ts).

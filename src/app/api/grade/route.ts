@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getDailyProblem } from "@/lib/game/daily";
 import { getPracticeProblem, type PracticeFocus } from "@/lib/game/practice";
 import { resolveBlindProblem } from "@/lib/game/blind-replay";
+import { getSpecialProblem, isSpecialType, specialProblemId } from "@/lib/game/special-problems";
+import type { ProblemType } from "@/lib/game/types";
 import { brierFor, GUESS_CONFIDENCE } from "@/lib/game/calibration";
 import { updateRating } from "@/lib/game/rating";
 import { gradeReasoning, explainReveal, type Depth } from "@/lib/ai/grade";
@@ -21,11 +23,15 @@ interface Body {
   deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
   blindReplay?: { seed: string; focus: PracticeFocus; visibleDays: number };
+  special?: { type: ProblemType; seed: string };
 }
 
 async function loadProblem(body: Body): Promise<SolvedProblem> {
   if (body.blindReplay) {
     return resolveBlindProblem(body.blindReplay.seed, body.blindReplay.focus, body.blindReplay.visibleDays);
+  }
+  if (body.special && isSpecialType(body.special.type)) {
+    return getSpecialProblem(body.special.type, body.special.seed);
   }
   if (body.practice) {
     return getPracticeProblem(body.practice.seed, body.practice.focus);
@@ -35,6 +41,9 @@ async function loadProblem(body: Body): Promise<SolvedProblem> {
 
 function problemIdFor(body: Body, problem: SolvedProblem): string {
   if (body.blindReplay) return `blind-${body.blindReplay.seed}`;
+  if (body.special && isSpecialType(body.special.type)) {
+    return specialProblemId(body.special.type, body.special.seed);
+  }
   return problem.id;
 }
 
@@ -82,7 +91,7 @@ export async function POST(req: Request) {
       inputs: { correct, brier, reasoning: reasoningGrade.score },
     });
 
-    if (deviceId && deviceId !== "anonymous" && !body.practice && !body.blindReplay) {
+    if (deviceId && deviceId !== "anonymous" && !body.practice && !body.blindReplay && !body.special) {
       await saveSubmission({
         deviceId,
         problemId: pid,

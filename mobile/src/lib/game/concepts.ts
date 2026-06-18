@@ -1,20 +1,39 @@
 /**
  * Investing concepts — tag problems & track per-concept mastery locally.
+ * Feeds the skill tree on the Rank screen (no backend needed).
  */
 import type { JournalEntry } from "../profile";
 import type { DailyProblem } from "./types";
 import { calibrationSkill } from "./calibration";
 
-export type { ConceptId, ConceptDef, ConceptMastery, MasteryLevel } from "./concept-types";
-export { CONCEPTS } from "./concept-types";
+export type ConceptId = "momentum" | "volatility" | "drawdown" | "reversal" | "sizing";
 
-import { CONCEPTS, type ConceptDef, type ConceptId, type ConceptMastery, type MasteryLevel } from "./concept-types";
+export interface ConceptDef {
+  id: ConceptId;
+  label: string;
+  icon: string;
+  blurb: string;
+}
+
+export const CONCEPTS: ConceptDef[] = [
+  { id: "momentum", label: "Momentum", icon: "📈", blurb: "Reading trend continuation vs. exhaustion." },
+  { id: "volatility", label: "Volatility", icon: "⚡", blurb: "Sizing confidence when outcomes swing wide." },
+  { id: "drawdown", label: "Drawdowns", icon: "📉", blurb: "Calls after pain — recovery vs. falling knife." },
+  { id: "reversal", label: "Reversals", icon: "🔄", blurb: "When the chart and the outcome disagree." },
+  { id: "sizing", label: "Conviction sizing", icon: "🎯", blurb: "Matching how sure you are to the evidence." },
+];
 
 function parsePct(value: string): number {
   return parseFloat(value.replace(/[^0-9.-]/g, "")) || 0;
 }
 
+/** Tag a problem from its visible setup (no look-ahead). */
 export function conceptsForProblem(problem: DailyProblem): ConceptId[] {
+  if (problem.type === "spot-the-flaw") return ["sizing", "reversal"];
+  if (problem.type === "options-greeks") return ["volatility", "sizing"];
+  if (problem.type === "futures-basics") return ["volatility", "sizing"];
+  if (problem.type === "calibration-bet") return ["sizing"];
+
   const tags = new Set<ConceptId>();
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
   // Return label carries the visible window length — match by substring (see metrics.ts).
@@ -27,18 +46,35 @@ export function conceptsForProblem(problem: DailyProblem): ConceptId[] {
   if (vol >= 35) tags.add("volatility");
   if (dd < -18) tags.add("drawdown");
   if (problem.difficulty >= 0.65) tags.add("sizing");
-  tags.add("sizing");
+  tags.add("sizing"); // every call practices sizing
 
   return [...tags];
 }
 
+/** Infer concepts for a journal row (stored tags or heuristic from difficulty). */
 export function conceptsForEntry(entry: JournalEntry): ConceptId[] {
   if (entry.concepts?.length) return entry.concepts;
   const tags = new Set<ConceptId>(["sizing"]);
   if (typeof entry.difficulty === "number" && entry.difficulty >= 0.7) tags.add("volatility");
-  if (entry.forwardReturnPct !== undefined && Math.abs(entry.forwardReturnPct) >= 12) tags.add("momentum");
+  if (entry.forwardReturnPct !== undefined) {
+    const big = Math.abs(entry.forwardReturnPct) >= 12;
+    if (big) tags.add("momentum");
+  }
   if (entry.brier > 0.2) tags.add("sizing");
   return [...tags];
+}
+
+export type MasteryLevel = "learning" | "building" | "sharp";
+
+export interface ConceptMastery {
+  id: ConceptId;
+  label: string;
+  icon: string;
+  blurb: string;
+  calls: number;
+  /** 0–100 composite: calibration + reasoning */
+  score: number;
+  level: MasteryLevel;
 }
 
 function masteryLevel(score: number, calls: number): MasteryLevel {
@@ -58,7 +94,7 @@ export function conceptMastery(history: JournalEntry[]): ConceptMastery[] {
     }
   }
 
-  return CONCEPTS.map((def: ConceptDef) => {
+  return CONCEPTS.map((def) => {
     const rows = buckets.get(def.id) ?? [];
     const calls = rows.length;
     let score = 0;
@@ -66,6 +102,14 @@ export function conceptMastery(history: JournalEntry[]): ConceptMastery[] {
       const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
       score = Math.round(avg(rows.map((h) => calibScore(h.brier))) * 0.45 + avg(rows.map((h) => h.reasoningScore)) * 100 * 0.55);
     }
-    return { id: def.id, label: def.label, icon: def.icon, blurb: def.blurb, calls, score, level: masteryLevel(score, calls) };
+    return {
+      id: def.id,
+      label: def.label,
+      icon: def.icon,
+      blurb: def.blurb,
+      calls,
+      score,
+      level: masteryLevel(score, calls),
+    };
   });
 }

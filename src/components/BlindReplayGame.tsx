@@ -153,7 +153,7 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-3.5">
+        <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">🎯 What you practiced</div>
           <div className="mt-1 font-bold">{skill.title}</div>
           <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{skill.line}</p>
@@ -260,8 +260,8 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
           return (
             <button key={c.id} type="button" onClick={() => { setChoice(c.id); vibrate(8); }}
               className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left"
-              style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(94,242,176,0.08)" : "var(--card)" }}>
-              <span className="grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold" style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#062013" : "var(--muted)" }}>{c.id}</span>
+              style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(240,197,96,0.10)" : "var(--card)" }}>
+              <span className="grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold" style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#3a2c08" : "var(--muted)" }}>{c.id}</span>
               <span className="text-[15px]">{c.label}</span>
             </button>
           );
@@ -284,7 +284,7 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
             return (
               <button key={chip.id} type="button" onClick={() => setSelectedChips((p) => sel ? p.filter((l) => l !== chip.label) : [...p, chip.label])}
                 className="rounded-full border px-3 py-1.5 text-[13px]"
-                style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(94,242,176,0.12)" : "var(--card-2)", color: sel ? "var(--accent)" : "var(--fg)" }}>
+                style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(240,197,96,0.14)" : "var(--card-2)", color: sel ? "var(--accent)" : "var(--fg)" }}>
                 {chip.label}
               </button>
             );

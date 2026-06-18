@@ -4,7 +4,7 @@ const BITS = Array.from({ length: 36 }, (_, i) => ({
   left: Math.random() * 100,
   delay: Math.random() * 0.3,
   dur: 1.6 + Math.random() * 1.2,
-  color: ["#5ef2b0", "#ffb454", "#7aa2ff", "#ff6b81", "#eef2f7"][i % 5],
+  color: ["#f0c560", "#e89a4a", "#6f8cff", "#ff7a6b", "#f6ede0"][i % 5],
   size: 6 + Math.random() * 7,
   rot: Math.random() * 360,
 }));

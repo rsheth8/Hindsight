@@ -11,5 +11,13 @@ describe("journal-entry-kind", () => {
   it("labels blind replay distinctly", () => {
     expect(journalEntryKindLabel("blind")).toBe("blind replay");
     expect(journalEntryKindLabel("practice")).toBe("practice");
+    expect(journalEntryKindLabel("futures")).toBe("futures & leverage");
+  });
+
+  it("classifies special drill prefixes", () => {
+    expect(journalEntryKind("flaw-abc")).toBe("flaw");
+    expect(journalEntryKind("options-abc")).toBe("options");
+    expect(journalEntryKind("futures-abc")).toBe("futures");
+    expect(journalEntryKind("calbet-abc")).toBe("calbet");
   });
 });

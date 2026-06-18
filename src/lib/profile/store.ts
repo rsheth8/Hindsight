@@ -7,6 +7,22 @@ import { START_RATING } from "@/lib/game/rating";
 import { START_DUEL_RATING } from "@/lib/game/duel";
 import { computeStreakUpdate, FREEZES_PER_WEEK } from "@/lib/game/streak";
 import type { ConceptId } from "@/lib/game/concepts";
+import type { PricepointLite } from "@/lib/game/types";
+import type { ChoiceId } from "@/lib/game/types";
+import type { LearningProgress } from "@/lib/learning/progress";
+import { emptyLearningProgress } from "@/lib/learning/progress";
+import type { MilestoneId } from "@/lib/game/milestones";
+
+/** Full reveal snapshot for journal replay (optional on older entries). */
+export interface JournalSnapshot {
+  explanation: string;
+  series: PricepointLite[];
+  continuation: PricepointLite[];
+  horizonLabel: string;
+  prompt: string;
+  problemType?: string;
+  crowd?: Record<ChoiceId, number>;
+}
 
 export interface JournalEntry {
   date: string;
@@ -28,6 +44,7 @@ export interface JournalEntry {
   /** problem difficulty 0–1, for per-difficulty insight detection (optional for older entries) */
   difficulty?: number;
   concepts?: ConceptId[];
+  snapshot?: JournalSnapshot;
 }
 
 export interface Profile {
@@ -46,6 +63,8 @@ export interface Profile {
   duelWins: number;
   duelLosses: number;
   duelDraws: number;
+  learningProgress?: LearningProgress;
+  seenMilestones?: MilestoneId[];
 }
 
 const KEY = "hindsight.profile.v1";
@@ -66,6 +85,8 @@ export function emptyProfile(): Profile {
     duelWins: 0,
     duelLosses: 0,
     duelDraws: 0,
+    learningProgress: emptyLearningProgress(),
+    seenMilestones: [],
   };
 }
 
@@ -171,6 +192,27 @@ export function recordDuelResult(args: { ratingAfter: number; result: "win" | "l
     duelLosses: (p.duelLosses ?? 0) + (args.result === "loss" ? 1 : 0),
     duelDraws: (p.duelDraws ?? 0) + (args.result === "draw" ? 1 : 0),
   };
+  save(next);
+  return next;
+}
+
+export function updateLearningProgress(progress: LearningProgress): Profile {
+  const p = loadProfile();
+  const next = { ...p, learningProgress: progress };
+  save(next);
+  return next;
+}
+
+export function markMilestonesSeen(ids: MilestoneId[]): Profile {
+  const p = loadProfile();
+  const seen = new Set([...(p.seenMilestones ?? []), ...ids]);
+  const next = { ...p, seenMilestones: [...seen] };
+  save(next);
+  return next;
+}
+
+export function replaceProfile(profile: Profile): Profile {
+  const next = { ...emptyProfile(), ...profile };
   save(next);
   return next;
 }

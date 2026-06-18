@@ -1,11 +1,18 @@
 "use client";
+import { useRef } from "react";
 import { useProfile } from "@/lib/profile/useProfile";
 import { summarize } from "@/lib/game/calibration";
 import { isProvisional, START_RATING } from "@/lib/game/rating";
 import { skillTrend, insights, type Insight } from "@/lib/game/progress";
+import { exportProfile, parseProfileExport } from "@/lib/profile/export";
+import { loadProfile, replaceProfile } from "@/lib/profile/store";
+import { pathSummary } from "@/lib/learning/progress";
+import Link from "next/link";
 
 export default function YouPage() {
   const p = useProfile();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const learn = pathSummary(p);
   const calib = summarize(p.history.map((h) => ({ confidence: h.confidence, correct: h.correct })));
   const prov = isProvisional(p.gradedCount);
   const ready = calib.readiness;
@@ -75,6 +82,55 @@ export default function YouPage() {
         <div className="mb-2 text-sm font-semibold">Your edge &amp; your leaks</div>
         <div className="flex flex-col gap-2">
           {tips.map((t, i) => <InsightCard key={i} tip={t} />)}
+        </div>
+      </div>
+
+      <div className="card mt-4 px-5 py-4">
+        <div className="text-sm font-semibold">🧭 Learning path</div>
+        <p className="mt-1 text-[13px] text-[var(--muted)]">
+          {learn.completed}/{learn.total} units · {learn.xp} XP
+          {learn.nextUnit ? ` · Next: ${learn.nextUnit.title}` : ""}
+        </p>
+        <Link href="/learn" className="btn-accent mt-3 block w-full py-2.5 text-center text-sm">
+          Continue learning
+        </Link>
+      </div>
+
+      <div className="card mt-4 px-5 py-4">
+        <div className="text-sm font-semibold">Backup &amp; restore</div>
+        <p className="mt-1 text-[12px] leading-relaxed text-[var(--muted)]">
+          Export your rating, journal, and learning progress. Import on a new device until cloud accounts ship.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="card flex-1 py-2.5 text-sm font-semibold"
+            onClick={() => {
+              const blob = new Blob([exportProfile(loadProfile())], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `hindsight-backup-${new Date().toISOString().slice(0, 10)}.json`;
+              a.click();
+            }}
+          >
+            Export JSON
+          </button>
+          <button type="button" className="card flex-1 py-2.5 text-sm font-semibold" onClick={() => fileRef.current?.click()}>
+            Import
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const text = await f.text();
+              replaceProfile(parseProfileExport(text));
+              location.reload();
+            }}
+          />
         </div>
       </div>
 

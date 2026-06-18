@@ -72,7 +72,7 @@ export async function renderShareImage(input: ShareImageInput): Promise<Blob> {
   ctx.fillText("outcome · calibration · reasoning", W / 2, pad + 148);
 
   // rating hero
-  const deltaColor = input.delta >= 0 ? "#5ef2b0" : "#ff6b6b";
+  const deltaColor = input.delta >= 0 ? "#f0c560" : "#ff7a6b";
   ctx.fillStyle = deltaColor;
   ctx.font = "800 64px system-ui, -apple-system, sans-serif";
   ctx.fillText(String(input.rating), W / 2, pad + 230);
@@ -87,7 +87,7 @@ export async function renderShareImage(input: ShareImageInput): Promise<Blob> {
   wrapText(ctx, "Better-calibrated than I was yesterday.", W / 2, pad + 300, W - pad * 2 - 32, 18);
 
   // footer
-  ctx.fillStyle = "#5ef2b0";
+  ctx.fillStyle = "#f0c560";
   ctx.font = "700 13px system-ui, -apple-system, sans-serif";
   ctx.fillText("play › hindsight.game", W / 2, H - pad - 28);
 

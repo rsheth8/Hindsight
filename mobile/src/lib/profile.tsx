@@ -9,6 +9,20 @@ import { START_RATING } from "./game/rating";
 import { START_DUEL_RATING } from "./game/duel";
 import { computeStreakUpdate, FREEZES_PER_WEEK } from "./game/streak";
 import type { ConceptId } from "./game/concept-types";
+import type { PricepointLite, ChoiceId } from "./game/types";
+import type { LearningProgress } from "./learning/progress";
+import { emptyLearningProgress } from "./learning/progress";
+import type { MilestoneId } from "./game/milestones";
+
+export interface JournalSnapshot {
+  explanation: string;
+  series: PricepointLite[];
+  continuation: PricepointLite[];
+  horizonLabel: string;
+  prompt: string;
+  problemType?: string;
+  crowd?: Record<ChoiceId, number>;
+}
 
 export interface JournalEntry {
   date: string;
@@ -30,6 +44,7 @@ export interface JournalEntry {
   /** problem difficulty 0–1, for per-difficulty insight detection (optional for older entries) */
   difficulty?: number;
   concepts?: ConceptId[];
+  snapshot?: JournalSnapshot;
 }
 
 export interface Profile {
@@ -50,6 +65,8 @@ export interface Profile {
   duelWins: number;
   duelLosses: number;
   duelDraws: number;
+  learningProgress?: LearningProgress;
+  seenMilestones?: MilestoneId[];
 }
 
 const KEY = "hindsight.profile.v1";
@@ -72,6 +89,8 @@ export function emptyProfile(): Profile {
     duelWins: 0,
     duelLosses: 0,
     duelDraws: 0,
+    learningProgress: emptyLearningProgress(),
+    seenMilestones: [],
   };
 }
 
@@ -86,6 +105,9 @@ interface Ctx {
   recordPractice: (entry: JournalEntry) => Promise<void>;
   recordDuel: (args: { ratingAfter: number; result: "win" | "loss" | "draw" }) => Promise<void>;
   updateSettings: (patch: Partial<Pick<Profile, "reminderEnabled" | "reminderHour" | "reminderMinute">>) => Promise<void>;
+  updateLearningProgress: (progress: LearningProgress) => Promise<void>;
+  markMilestonesSeen: (ids: MilestoneId[]) => Promise<void>;
+  replaceProfile: (profile: Profile) => Promise<void>;
 }
 
 const ProfileContext = createContext<Ctx | null>(null);
@@ -118,6 +140,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         freezeWeekKey: p.freezeWeekKey ?? null,
       });
       const next: Profile = {
+        ...p, // preserve duel ladder, learning progress, milestones, reminders, etc.
         rating: entry.ratingAfter,
         gradedCount: p.gradedCount + 1,
         streak: streakUpdate.streak,
@@ -125,9 +148,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         lastPlayedDate: entry.date,
         streakFreezes: streakUpdate.streakFreezes,
         freezeWeekKey: streakUpdate.freezeWeekKey,
-        reminderEnabled: p.reminderEnabled ?? false,
-        reminderHour: p.reminderHour ?? 18,
-        reminderMinute: p.reminderMinute ?? 0,
         history: [entry, ...p.history].slice(0, 365),
       };
       AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
@@ -139,16 +159,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setProfile((p) => {
       if (p.history.some((h) => h.problemId === entry.problemId)) return p;
       const next: Profile = {
+        ...p, // preserve duel ladder, learning progress, milestones, etc.
         rating: entry.ratingAfter,
         gradedCount: p.gradedCount + 1,
-        streak: p.streak,
-        longestStreak: p.longestStreak,
-        lastPlayedDate: p.lastPlayedDate,
-        streakFreezes: p.streakFreezes ?? FREEZES_PER_WEEK,
-        freezeWeekKey: p.freezeWeekKey ?? null,
-        reminderEnabled: p.reminderEnabled ?? false,
-        reminderHour: p.reminderHour ?? 18,
-        reminderMinute: p.reminderMinute ?? 0,
         history: [entry, ...p.history].slice(0, 365),
       };
       AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
@@ -179,7 +192,33 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ profile, ready, record, recordPractice, recordDuel, updateSettings }), [profile, ready, record, recordPractice, recordDuel, updateSettings]);
+  const updateLearningProgress = useCallback(async (progress: LearningProgress) => {
+    setProfile((p) => {
+      const next = { ...p, learningProgress: progress };
+      AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const markMilestonesSeen = useCallback(async (ids: MilestoneId[]) => {
+    setProfile((p) => {
+      const seen = new Set([...(p.seenMilestones ?? []), ...ids]);
+      const next = { ...p, seenMilestones: [...seen] };
+      AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const replaceProfile = useCallback(async (nextProfile: Profile) => {
+    const next = { ...emptyProfile(), ...nextProfile };
+    setProfile(next);
+    await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  }, []);
+
+  const value = useMemo(
+    () => ({ profile, ready, record, recordPractice, recordDuel, updateSettings, updateLearningProgress, markMilestonesSeen, replaceProfile }),
+    [profile, ready, record, recordPractice, recordDuel, updateSettings, updateLearningProgress, markMilestonesSeen, replaceProfile],
+  );
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
 

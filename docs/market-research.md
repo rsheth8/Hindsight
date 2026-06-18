@@ -21,14 +21,15 @@ with no money at risk**, and gives them the thing they're missing: *calibrated c
 
 ---
 
-## 2. The landscape — four clusters
+## 2. The landscape — five clusters
 
 | Cluster | Examples | Scored on | Daily game? | Calibration? | Reasoning? | Skill rating? | Investing? |
 |---|---|---|---|---|---|---|---|
-| **Hidden-chart trading games** | ChartGame (app), ChartZero, engaging-data Market-Timing, Trading Game | **P&L / "beat the market"** | ChartGame ✔ | ✗ | ✗ | net-worth tiers | ✔ |
+| **Hidden-chart trading games** | ChartGame (app), ChartZero, engaging-data Market-Timing | **P&L / "beat the market"** | ChartGame ✔ | ✗ | ✗ | net-worth tiers | ✔ |
+| **Paper trading simulators** | **Stock Market Simulator & Game**, Redvest, Invstr, Trading Game, StockSim | **portfolio P&L / net worth** | ✗ | ✗ | ✗ | leaderboard rank | ✔ |
 | **"Wordle for stocks"** | Stockle, Wallstreetle, Guess the Stock Chart, Financhle | identify the ticker (trivia) / predict SPY close | ✔ | ✗ | ✗ | ✗ | ✔ |
 | **Forecasting / calibration** | Metaculus, Manifold, Good Judgment, **Calibrate Your Judgment** | **Brier / calibration** ✔ | ✗ | ✔ | light | reputation/accuracy | ✗ (general topics) |
-| **Decision journals + gamified ed** | **InvestorOS**, TraderVue, Invstr Academy, Zogo, StockPe | record / lessons / fantasy P&L | ✗ | ✗ | InvestorOS ✔ | ✗ | ✔ |
+| **Decision journals + gamified ed** | **InvestorOS**, TraderVue, Zogo, StockPe | record / lessons | ✗ | ✗ | InvestorOS ✔ | ✗ | ✔ |
 
 **Hindsight is the only entry that would tick `daily ✔ · calibration ✔ · reasoning ✔ ·
 skill-rating ✔ · investing ✔` at once.** A targeted search for exactly that combination
@@ -76,11 +77,25 @@ mobile game.** ([clearerthinking.org](https://www.clearerthinking.org/post/2019/
 → Our edge: we take its rigor (calibration is the score) and put it inside an investing
 game with a daily streak and a coach — the rigor without the homework feel.
 
+### Stock Market Simulator & Game (Three Investeers / Hedgehog Solutions) — *largest paper-trading sim*
+Open-ended **paper trading** with $100k virtual cash and **real-time** buy/sell across 200+
+securities (stocks, indices, forex, oil, gold). **Trading School** with interactive courses,
+pattern quizzes, and candlestick lessons. Weekly **fantasy invest leaderboard** ranked on
+portfolio value; PRO subscription (~$1.99/wk) unlocks leverage (up to 100×) and full school
+access. ~250k+ downloads, 4.7/5 App Store. Messaging: *"build the knowledge of a winner"*
+and *"test your trading skills without risking a cent."* **Scores you on P&L and net worth,
+not calibration or reasoning.** Open sandbox, not a daily puzzle — users practice broker
+mechanics (charts, stop-loss, margin) rather than sizing confidence on a single call.
+→ Our edge: same risk-free beginner on-ramp, but we train **judgment and calibrated
+confidence** in a 5-minute daily ritual — not portfolio competition or execution practice.
+Adjacent audience, opposite product DNA.
+([App Store](https://apps.apple.com/us/app/stock-market-simulator-game/id1584972136) ·
+[stockmarketgame.net](https://stockmarketgame.net/))
+
 **Also noted (not direct):** Metaculus (Brier 0.111) / Manifold (0.168) — general
 forecasting, not investing, not a game; Kalshi / Polymarket — real-money markets (regulated
-gambling-adjacent), the *opposite* of "no money at risk, build the skill"; Invstr / Zogo /
-StockPe / Wealthbase — lessons, fantasy P&L, or compete-for-cash, all **outcome/return**
-framed.
+gambling-adjacent), the *opposite* of "no money at risk, build the skill"; Zogo /
+StockPe / Wealthbase — lessons or compete-for-cash, all **outcome/return** framed.
 
 ---
 
@@ -96,7 +111,8 @@ framed.
    GENERAL TOPICS ◄───────────────┼───────────────► INVESTING-SPECIFIC
                                   │
         (nobody serious here)     │   ChartGame · ChartZero · Financhle
-                                  │   Invstr · StockPe · Wealthbase
+                                  │   Stock Market Simulator & Game
+                                  │   Invstr · Redvest · StockPe · Wealthbase
                                   ▼   (reward being RIGHT / P&L / returns)
                  GRADES OUTCOME / RETURNS (luck-polluted)
 ```
@@ -147,7 +163,8 @@ These make the difference *legible* and hard to copy:
   "decision, not outcome." Repeat it until it's yours (like Duolingo owns "streak").
 - **Anti-positioning copy** (App Store / landing): *"Other apps reward you for getting
   lucky. Hindsight rewards you for getting it right for the right reasons."* Direct contrast
-  to ChartGame/fantasy-trading.
+  to ChartGame, paper-trading sims (Stock Market Simulator & Game, Redvest), and fantasy
+  portfolio games.
 - **Lean into the prediction-market moment**: a "Skill, not stakes" angle — same thrill as
   Kalshi, zero money at risk, and you actually get better. Targets the exact Gen-Z energy.
 
@@ -155,9 +172,10 @@ These make the difference *legible* and hard to copy:
 
 ## 7. Moat — why this is hard to copy
 
-- **Philosophical lock-in:** ChartGame, Invstr, StockPe, Wealthbase are *built around*
-  returns/P&L and competition for cash. Re-centering on calibration would contradict their
-  core loop and value prop — they can't easily follow without becoming us.
+- **Philosophical lock-in:** ChartGame, Stock Market Simulator & Game, Invstr, StockPe,
+  Wealthbase are *built around* returns/P&L and portfolio competition. Re-centering on
+  calibration would contradict their core loop and value prop — they can't easily follow
+  without becoming us.
 - **The grading stack:** calibration math + luck filter + AI reasoning grade + multi-depth
   coaching is real engineering and product taste, not a weekend clone (unlike a Wordle skin).
 - **Data flywheel (when telemetry lands):** real crowd calibration distributions and
@@ -187,4 +205,5 @@ These make the difference *legible* and hard to copy:
 - [Stockle](https://www.bearbull.io/stockle) · [Wallstreetle](https://wallstreetle.com/) · [Guess the Stock Chart](https://guessthestockchart.io/) · [Financhle](https://financhle.com/)
 - [InvestorOS](https://www.investoros.app/) · [Investment journal tools](https://www.investing-tools.com/best-investment-journal-tools-for-tracking-decisions-and-reducing-bias/)
 - [Calibrate Your Judgment (Clearer Thinking)](https://www.clearerthinking.org/post/2019/10/16/practice-making-accurate-predictions-with-our-new-tool) · [Metaculus review](https://predictionmarketsreviews.com/reviews/metaculus)
+- [Stock Market Simulator & Game (App Store)](https://apps.apple.com/us/app/stock-market-simulator-game/id1584972136) · [stockmarketgame.net](https://stockmarketgame.net/) · [MWM listing profile](https://mwm.ai/apps/stock-market-simulator-game/1584972136)
 - [Invstr Academy](https://financialit.net/news/investment/invstr-brings-interactive-investing-education-mobile-launch-invstr-academy) · [Zogo](https://zogo.com/) · [StockPe](https://play.google.com/store/apps/details?id=com.stockpemarket) · [Wealthbase via Matellio](https://www.matellio.com/blog/how-to-develop-a-fantasy-stock-trading-app-like-wealthbase/)

@@ -2,7 +2,7 @@
  * Talks to the Hindsight backend (the Next.js app's /api routes). The backend
  * holds the FMP + Anthropic keys; the phone never sees them.
  */
-import type { DailyProblem, GradeResult } from "./game/types";
+import type { DailyProblem, GradeResult, ProblemType } from "./game/types";
 import type { Depth } from "./grade-types";
 import type { PracticeFocus } from "./game/practice";
 
@@ -52,6 +52,16 @@ export interface GradePayload {
   deviceId?: string;
   practice?: { seed: string; focus: PracticeFocus };
   blindReplay?: { seed: string; focus: PracticeFocus; visibleDays: number };
+  special?: { type: ProblemType; seed: string };
+}
+
+export async function fetchSpecialProblem(type: ProblemType, seed: string): Promise<DailyProblem> {
+  const q = new URLSearchParams({ seed, type });
+  const res = await fetch(`${API_BASE}/api/special-problem?${q}`);
+  if (!res.ok) throw new Error(`special ${res.status}`);
+  const data = await res.json();
+  if (data?.error) throw new Error(data.error);
+  return data as DailyProblem;
 }
 
 export async function gradeSubmission(payload: GradePayload): Promise<GradeResult> {

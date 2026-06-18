@@ -11,7 +11,7 @@ export function DepthToggle({ depth, setDepth }: { depth: Depth; setDepth: (d: D
           type="button"
           onClick={() => setDepth(o)}
           className="rounded-md px-2 py-1 capitalize"
-          style={{ background: depth === o ? "var(--accent)" : "transparent", color: depth === o ? "#062013" : "var(--muted)" }}
+          style={{ background: depth === o ? "var(--accent)" : "transparent", color: depth === o ? "#3a2c08" : "var(--muted)" }}
           aria-pressed={depth === o}
         >
           {o}

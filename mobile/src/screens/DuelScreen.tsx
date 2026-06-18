@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Share, Text, TextInput, View,
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { SparkChart } from "../components/SparkChart";
+import { Rise, Pop } from "../components/Animate";
 import { useProfile } from "../lib/profile";
 import { getDeviceId } from "../lib/device-id";
 import { buildReasoning, chipsForProblem, hasReasoning } from "../lib/game/reasoning-chips";
@@ -26,7 +27,7 @@ import type { DuelPresenceStatus } from "../lib/duel/presence";
 import { useDuelMatch } from "../lib/duel/useDuelMatch";
 import type { PublicDuelMatch } from "../lib/duel/types";
 import type { ChoiceId, Choice, DailyProblem } from "../lib/game/types";
-import { C } from "../theme";
+import { C, F } from "../theme";
 
 const MODES: DuelMode[] = ["same-board", "best-of-3", "blind-bid", "argument-arena"];
 const TEMPOS: { id: DuelTempo; label: string; sub: string }[] = [
@@ -303,7 +304,7 @@ export function DuelScreen({ onExit, initialJoinCode }: { onExit: () => void; in
           const sel = choice === c.id;
           return (
             <Pressable key={c.id} onPress={() => { setChoice(c.id); Haptics.selectionAsync(); }}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
               <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: sel ? C.accent : C.card2 }}>
                 <Text style={{ fontWeight: "700", fontSize: 13, color: sel ? C.accentInk : C.muted }}>{c.id}</Text>
               </View>
@@ -333,7 +334,7 @@ export function DuelScreen({ onExit, initialJoinCode }: { onExit: () => void; in
                 setSelectedChips((prev) => sel ? prev.filter((l) => l !== chip.label) : [...prev, chip.label]);
                 Haptics.selectionAsync();
               }}
-                style={{ borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.12)" : C.card2 }}>
+                style={{ borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.14)" : C.card2 }}>
                 <Text style={{ fontSize: 13, color: sel ? C.accent : C.fg }}>{chip.label}</Text>
               </Pressable>
             );
@@ -371,7 +372,7 @@ function Lobby({ mode, setMode, tempo, setTempo, clock, setClock, onFind, onFrie
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View>
-          <Text style={{ fontSize: 22, fontWeight: "800", color: C.fg }}>Duel</Text>
+          <Text style={{ fontSize: 22, color: C.fg, fontFamily: F.display, letterSpacing: -0.5 }}>Duel</Text>
           <Text style={{ marginTop: 2, fontSize: 13, color: C.muted }}>Head-to-head. Sharper read wins — never returns.</Text>
         </View>
         <Pressable onPress={onExit}><Text style={{ fontSize: 14, color: C.muted }}>Done</Text></Pressable>
@@ -393,7 +394,7 @@ function Lobby({ mode, setMode, tempo, setTempo, clock, setClock, onFind, onFrie
           const sel = mode === m;
           return (
             <Pressable key={m} onPress={() => { setMode(m); Haptics.selectionAsync(); }}
-              style={{ borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, marginTop: 8, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+              style={{ borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, marginTop: 8, borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
               <Text style={{ fontSize: 15, fontWeight: "700", color: C.fg }}>{meta.emoji}  {meta.name}</Text>
               <Text style={{ marginTop: 2, fontSize: 12, color: C.muted }}>{meta.blurb}</Text>
             </Pressable>
@@ -407,7 +408,7 @@ function Lobby({ mode, setMode, tempo, setTempo, clock, setClock, onFind, onFrie
             const sel = tempo === t.id;
             return (
               <Pressable key={t.id} onPress={() => { setTempo(t.id); Haptics.selectionAsync(); }}
-                style={{ flex: 1, borderRadius: 14, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 12, alignItems: "center", borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+                style={{ flex: 1, borderRadius: 14, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 12, alignItems: "center", borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
                 <Text style={{ fontSize: 14, fontWeight: "700", color: sel ? C.accent : C.fg }}>{t.label}</Text>
                 <Text style={{ marginTop: 2, fontSize: 10, color: C.muted2, textAlign: "center" }}>{t.sub}</Text>
               </Pressable>
@@ -423,7 +424,7 @@ function Lobby({ mode, setMode, tempo, setTempo, clock, setClock, onFind, onFrie
               const sel = clock === cl;
               return (
                 <Pressable key={cl} onPress={() => { setClock(cl); Haptics.selectionAsync(); }}
-                  style={{ flex: 1, borderRadius: 14, borderWidth: 1, paddingVertical: 12, alignItems: "center", borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(94,242,176,0.08)" : C.card }}>
+                  style={{ flex: 1, borderRadius: 14, borderWidth: 1, paddingVertical: 12, alignItems: "center", borderColor: sel ? C.accent : C.border, backgroundColor: sel ? "rgba(240,197,96,0.10)" : C.card }}>
                   <Text style={{ fontSize: 13, fontWeight: "700", color: sel ? C.accent : C.fg }}>{CLOCK_LABEL[cl]}</Text>
                 </Pressable>
               );
@@ -526,16 +527,19 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       <View style={{ alignItems: "center" }}>
-        <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: tone, paddingHorizontal: 16, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 15, fontWeight: "800", letterSpacing: 1.5, color: tone }}>{title}</Text>
-        </View>
-        <Text style={{ marginTop: 14, fontSize: 56, fontWeight: "800", letterSpacing: -1, color: tone, fontVariant: ["tabular-nums"] }}>
+        <Pop style={{ marginBottom: 14 }}>
+          <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: tone, paddingHorizontal: 16, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 14, letterSpacing: 1.5, color: tone, fontFamily: F.mono }}>{title}</Text>
+          </View>
+        </Pop>
+        <Text style={{ fontSize: 56, letterSpacing: -1.5, color: tone, fontFamily: F.display, fontVariant: ["tabular-nums"] }}>
           {delta >= 0 ? "+" : ""}{delta}
         </Text>
-        <Text style={{ fontSize: 13, color: C.muted }}>duel rating · now {you?.duelRatingAfter ?? profileless(delta, you)}</Text>
+        <Text style={{ fontSize: 13, color: C.muted, fontFamily: F.body }}>duel rating · now {you?.duelRatingAfter ?? profileless(delta, you)}</Text>
       </View>
 
       {/* per-round scoreboard */}
+      <Rise delay={80}>
       <View style={{ marginTop: 22, gap: 10 }}>
         {completedRounds.map((r) => {
           const ryg = you ? r.grades?.[you.id] : undefined;
@@ -566,6 +570,7 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
           );
         })}
       </View>
+      </Rise>
 
       {isFriend && lastRound?.opponentReasoning ? (
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, marginTop: 12 }}>
@@ -601,6 +606,7 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
       )}
 
       {reveal && (
+        <Rise delay={160}>
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 18 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14 }}>
             <View>
@@ -618,6 +624,7 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
             </View>
           )}
         </View>
+        </Rise>
       )}
 
       <PrimaryButton label="Rematch" onPress={onRematch} />
@@ -647,9 +654,9 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
 function GradeCol({ name, grade, highlight, choices }: { name: string; grade?: RoundGrade; highlight: boolean; choices?: Choice[] }) {
   const pickLine = gradePickLine(grade, choices);
   return (
-    <View style={{ flex: 1, borderRadius: 12, backgroundColor: highlight ? "rgba(94,242,176,0.08)" : C.card2, borderWidth: 1, borderColor: highlight ? C.accent : C.border, paddingHorizontal: 12, paddingVertical: 10 }}>
+    <View style={{ flex: 1, borderRadius: 12, backgroundColor: highlight ? "rgba(240,197,96,0.10)" : C.card2, borderWidth: 1, borderColor: highlight ? C.accent : C.border, paddingHorizontal: 12, paddingVertical: 10 }}>
       <Text style={{ fontSize: 12, fontWeight: "700", color: highlight ? C.accent : C.fg }}>{name}</Text>
-      <Text style={{ marginTop: 6, fontSize: 22, fontWeight: "800", color: C.fg, fontVariant: ["tabular-nums"] }}>{grade ? grade.score.toFixed(2) : "—"}</Text>
+      <Text style={{ marginTop: 6, fontSize: 22, color: C.fg, fontFamily: F.display, fontVariant: ["tabular-nums"] }}>{grade ? grade.score.toFixed(2) : "—"}</Text>
       <Text style={{ fontSize: 10, color: C.muted2 }}>skill score</Text>
       {grade ? (
         <>

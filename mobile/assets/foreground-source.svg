@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Android adaptive foreground — mark inset into the ~66% safe zone -->
+  <g transform="translate(512 512) scale(0.6) translate(-512 -512)">
+    <line x1="280" y1="208" x2="280" y2="816" stroke="#6b5c48" stroke-width="22" stroke-linecap="round" stroke-dasharray="2 118"/>
+    <line x1="744" y1="208" x2="744" y2="816" stroke="#6b5c48" stroke-width="22" stroke-linecap="round" stroke-dasharray="2 118"/>
+    <path d="M280 552 L456 600 L600 408 L744 472" fill="none" stroke="#f0c560" stroke-width="70" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="280" cy="552" r="62" fill="#f6ede0"/>
+    <circle cx="744" cy="472" r="62" fill="#f6ede0"/>
+  </g>
+</svg>

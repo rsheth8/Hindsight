@@ -1,23 +1,26 @@
 @import "tailwindcss";
 
-/* ── Hindsight theme ──────────────────────────────────────────────────────
-   Dark by default, one decisive accent, number-as-hero. Mobile-first. */
+/* ── Hindsight theme — "espresso + gold" ───────────────────────────────────
+   Dark, warm, one gold accent, number-as-hero. Mobile-first.
+   Source of truth: docs/design.md. Mirrors mobile/src/theme.ts. */
 :root {
-  --bg: #0a0c11;
-  --bg-elev: #11151d;
-  --card: #161b25;
-  --card-2: #1d2430;
-  --border: #252d3a;
-  --fg: #eef2f7;
-  --muted: #9aa7ba;
-  --muted-2: #6b788b;
+  --bg: #0c0907; /* base — near-black espresso */
+  --bg-elev: #100b08;
+  --card: #171210; /* surface */
+  --card-2: #241a14; /* surface2 — insets / tracks / inactive bars */
+  --border: #2c2118;
+  --fg: #f6ede0; /* warm white */
+  --muted: #9a8d7a;
+  --muted-2: #6b5c48;
 
-  --accent: #5ef2b0; /* signal mint — "earned / good" */
-  --accent-dim: #2ea378;
-  --warn: #ffb454; /* caution — overconfidence */
-  --bad: #ff6b81; /* wrong / loss */
-  --up: #5ef2b0;
-  --down: #ff6b81;
+  --accent: #f0c560; /* gold — hero / gains / calibrated / wins */
+  --accent-ink: #3a2c08; /* text on gold */
+  --accent-dim: #b88f2e;
+  --warn: #e89a4a; /* caution — overconfidence */
+  --bad: #ff7a6b; /* wrong / loss (coral "hot") */
+  --up: #f0c560; /* gains glow gold (NOT green — design.md §2) */
+  --down: #ff7a6b; /* losses coral */
+  --cool: #6f8cff; /* "too timid" end of the calibration bar */
 
   --radius: 18px;
 }
@@ -47,8 +50,8 @@ body {
 }
 
 body {
-  /* subtle top glow, compositor-cheap (no heavy WebGL — keep phones smooth) */
-  background-image: radial-gradient(120% 60% at 50% -10%, rgba(94, 242, 176, 0.08), transparent 60%);
+  /* subtle warm top glow, compositor-cheap (no heavy WebGL — keep phones smooth) */
+  background-image: radial-gradient(120% 60% at 50% -10%, rgba(240, 197, 96, 0.09), transparent 60%);
   background-attachment: fixed;
 }
 
@@ -122,7 +125,7 @@ input[type="range"].dial:active::-webkit-slider-thumb {
 
 .btn-primary {
   background: var(--accent);
-  color: #062013;
+  color: var(--accent-ink);
   font-weight: 700;
   border-radius: 14px;
   transition: transform 0.08s ease, filter 0.15s ease;

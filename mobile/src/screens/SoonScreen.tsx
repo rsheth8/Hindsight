@@ -1,12 +1,12 @@
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
-import { C } from "../theme";
+import { C, F } from "../theme";
 
 /** Roadmap stubs for Practice and Rank — honest "coming soon" rows. */
 export function SoonScreen({ title, blurb, hero, modes }: { title: string; blurb: string; hero?: { emoji: string; text: string }; modes: string[] }) {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800", color: C.fg }}>{title}</Text>
+      <Text style={{ fontSize: 22, color: C.fg, fontFamily: F.display, letterSpacing: -0.5 }}>{title}</Text>
       <Text style={{ marginTop: 4, fontSize: 13, color: C.muted }}>{blurb}</Text>
 
       {hero && (

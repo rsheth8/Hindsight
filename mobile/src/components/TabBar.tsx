@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { C } from "../theme";
+import { C, F } from "../theme";
 
 export type TabKey = "daily" | "practice" | "rank" | "journal" | "you";
 
@@ -22,7 +22,7 @@ export function TabBar({ active, onChange, bottomInset }: { active: TabKey; onCh
         return (
           <Pressable key={t.key} onPress={() => { Haptics.selectionAsync(); onChange(t.key); }} style={{ flex: 1, alignItems: "center", gap: 3 }}>
             <Icon name={t.key} color={on ? C.accent : C.muted2} />
-            <Text style={{ fontSize: 10, color: on ? C.accent : C.muted2, fontWeight: on ? "600" : "400" }}>{t.label}</Text>
+            <Text style={{ fontSize: 10, color: on ? C.accent : C.muted2, fontFamily: on ? F.bodySemi : F.body }}>{t.label}</Text>
           </Pressable>
         );
       })}

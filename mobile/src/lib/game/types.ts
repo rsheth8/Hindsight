@@ -7,7 +7,36 @@
  * calibration (Brier) and reasoning weigh far more than being right.
  */
 
-export type ProblemType = "read-the-setup";
+export type ProblemType =
+  | "read-the-setup"
+  | "spot-the-flaw"
+  | "options-greeks"
+  | "futures-basics"
+  | "calibration-bet";
+
+/** Options scenario shown on options-greeks problems (educational, synthetic). */
+export interface OptionsGreeksSetup {
+  underlying: number;
+  strike: number;
+  dte: number;
+  iv: number;
+  positionLabel: string;
+  greeks: { delta: number; gamma: number; theta: number; vega: number };
+}
+
+/** Flawed thesis paragraph on spot-the-flaw problems. */
+export interface SpotTheFlawSetup {
+  thesis: string;
+  chartCaption: string;
+}
+
+/** Futures scenario on futures-basics problems (educational, synthetic). */
+export interface FuturesBasicsSetup {
+  instrument: string;
+  positionLabel: string;
+  context: string;
+  notional: string;
+}
 
 export interface Pricepoint {
   /** ISO date (YYYY-MM-DD). */
@@ -50,6 +79,12 @@ export interface DailyProblem {
   crowdSampleSize?: number;
   /** true when built from live FMP data, false when from the fallback bank */
   live: boolean;
+  /** Mode-specific payloads — only present for non-chart problem types. */
+  optionsSetup?: OptionsGreeksSetup;
+  flawSetup?: SpotTheFlawSetup;
+  futuresSetup?: FuturesBasicsSetup;
+  /** Calibration-bet: the resolved base-rate hint shown after submit. */
+  baseRateHint?: string;
 }
 
 /** Price point with the value normalized to an index (start = 100) to anonymize. */

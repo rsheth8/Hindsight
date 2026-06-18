@@ -19,8 +19,11 @@ import {
 } from "@/lib/game/practice-focus";
 import { verdict, transferableSkill, type VerdictTone } from "@/lib/game/progress";
 import { COACH } from "@/lib/coach";
-import type { ChoiceId, DailyProblem, GradeResult } from "@/lib/game/types";
+import type { ChoiceId, DailyProblem, GradeResult, ProblemType } from "@/lib/game/types";
 import { BlindReplayGame } from "./BlindReplayGame";
+import { ProblemSetup } from "./ProblemSetup";
+import { SPECIAL_DRILLS, isSpecialDrill, problemTypeLabel, specialRevealLine } from "@/lib/game/problem-meta";
+import Link from "next/link";
 
 import type { Depth } from "@/lib/ai/grade";
 
@@ -40,6 +43,7 @@ export function PracticeGame() {
   const [view, setView] = useState<"hub" | "read" | "blind">("hub");
   const [phase, setPhase] = useState<Phase>("hub");
   const [seed, setSeed] = useState(newSeed);
+  const [specialType, setSpecialType] = useState<ProblemType | null>(null);
   const [problem, setProblem] = useState<DailyProblem | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +73,7 @@ export function PracticeGame() {
 
   const loadProblem = useCallback((nextSeed: string, f: PracticeFocus) => {
     resetRound();
+    setSpecialType(null);
     setSeed(nextSeed);
     setPhase("loading");
     const q = new URLSearchParams({ seed: nextSeed, focus: f });
@@ -81,6 +86,26 @@ export function PracticeGame() {
       })
       .catch(() => {
         setError("Couldn't load a practice problem.");
+        setPhase("hub");
+      });
+  }, [resetRound]);
+
+  const loadSpecial = useCallback((type: ProblemType) => {
+    resetRound();
+    const nextSeed = newSeed();
+    setSpecialType(type);
+    setSeed(nextSeed);
+    setPhase("loading");
+    const q = new URLSearchParams({ seed: nextSeed, type });
+    fetch(`/api/special-problem?${q}`)
+      .then((r) => r.json())
+      .then((data: DailyProblem & { error?: string }) => {
+        if (data.error) throw new Error(data.error);
+        setProblem(data);
+        setPhase("commit");
+      })
+      .catch(() => {
+        setError("Couldn't load drill.");
         setPhase("hub");
       });
   }, [resetRound]);
@@ -101,7 +126,9 @@ export function PracticeGame() {
           rating: profile.rating,
           gradedCount: profile.gradedCount,
           depth,
-          practice: { seed, focus },
+          ...(specialType
+            ? { special: { type: specialType, seed } }
+            : { practice: { seed, focus } }),
         }),
       });
       const data: GradeResult & { error?: string } = await res.json();
@@ -145,7 +172,7 @@ export function PracticeGame() {
         <h1 className="text-xl font-bold">Practice</h1>
         <p className="mt-1 text-[13px] text-[var(--muted)]">Binge mode — no streak pressure. Rating still moves; daily streak doesn&apos;t.</p>
 
-        <div className="mt-5 rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-4">
+        <div className="mt-5 rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">🎯 Targeting</div>
           <div className="mt-1 text-[17px] font-bold">{focusLabel(focus)}</div>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">{practiceFocusBlurb(focus)}</p>
@@ -158,11 +185,19 @@ export function PracticeGame() {
           👁️ Blind replay
           <span className="mt-1 block text-xs font-normal text-[var(--muted)]">Reveal the chart week-by-week, then call it.</span>
         </button>
+
+        <div className="mt-6 text-sm font-semibold">Special drills</div>
+        <div className="mt-2 flex flex-col gap-2">
+          {SPECIAL_DRILLS.map((d) => (
+            <SpecialBtn key={d.type} label={`${d.emoji} ${d.label}`} sub={d.sub} onClick={() => loadSpecial(d.type)} />
+          ))}
+        </div>
+
+        <Link href="/learn" className="mt-4 block rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-4 text-center text-sm font-semibold">
+          🧭 Hind&apos;s learning path
+        </Link>
         {error && <p className="mt-3 text-center text-sm text-[var(--bad)]">{error}</p>}
 
-        <p className="mt-8 text-center text-[12px] text-[var(--muted-2)]">
-          More practice modes (spot the flaw, valuation, calibration bet) coming in future updates.
-        </p>
         <Disclaimer className="mt-6" />
       </div>
     );
@@ -204,12 +239,27 @@ export function PracticeGame() {
               You called <span className="font-semibold text-[var(--fg)]">{playerLabel}</span> at {confidence}% confidence.
             </p>
             <p className="mt-1 text-[14px] leading-relaxed text-[var(--muted)]">
-              Correct answer: <span className="font-semibold text-[var(--accent)]">{correctLabel}</span>
-              {" "}— the stock moved {up ? "+" : ""}{r.forwardReturnPct}% over {problem.horizonLabel}.
+              {isSpecialDrill(problem.type)
+                ? specialRevealLine(problem, correctLabel ?? "")
+                : (
+                  <>
+                    Correct answer: <span className="font-semibold text-[var(--accent)]">{correctLabel}</span>
+                    {" "}— the stock moved {up ? "+" : ""}{r.forwardReturnPct}% over {problem.horizonLabel}.
+                  </>
+                )}
             </p>
           </div>
         )}
 
+        {isSpecialDrill(problem.type) ? (
+          <div className="card mt-5 px-4 py-4">
+            <div className="text-[11px] text-[var(--muted-2)]">{problemTypeLabel(problem.type)}</div>
+            <div className="text-lg font-bold">{r.company}</div>
+            <p className="mt-2 text-[14px] leading-relaxed text-[var(--muted)]">
+              {specialRevealLine(problem, correctLabel ?? "")}
+            </p>
+          </div>
+        ) : (
         <div className="card mt-5 overflow-hidden">
           <div className="px-4 pt-4">
             <div className="text-[11px] text-[var(--muted-2)]">It was</div>
@@ -221,6 +271,7 @@ export function PracticeGame() {
             correct answer: <span className="font-semibold text-[var(--fg)]">{correctLabel}</span>
           </div>
         </div>
+        )}
 
         <div className="card mt-4 px-4 py-4">
           <div className="mb-2 flex items-center justify-between">
@@ -233,7 +284,7 @@ export function PracticeGame() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-3.5">
+        <div className="mt-4 rounded-2xl border border-[var(--accent)] bg-[rgba(240,197,96,0.07)] px-4 py-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">🎯 What you practiced</div>
           <div className="mt-1 font-bold">{skill.title}</div>
           <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{skill.line}</p>
@@ -251,7 +302,7 @@ export function PracticeGame() {
           />
         </div>
 
-        <button type="button" onClick={() => loadProblem(newSeed(), focus)} className="btn-primary mt-5 w-full py-4">Another one</button>
+        <button type="button" onClick={() => (specialType ? loadSpecial(specialType) : loadProblem(newSeed(), focus))} className="btn-primary mt-5 w-full py-4">Another one</button>
         <button type="button" onClick={() => { resetRound(); setPhase("hub"); }} className="mt-3 w-full py-2 text-sm text-[var(--muted)]">Back to Practice hub</button>
         <Disclaimer className="mt-4" />
       </div>
@@ -259,27 +310,18 @@ export function PracticeGame() {
   }
 
   const grading = phase === "grading";
+  const drillLabel = specialType ? problemTypeLabel(specialType) : focusLabel(focus);
   return (
     <div className="animate-rise">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-[var(--muted-2)]">Practice · {focusLabel(focus)}</div>
+          <div className="text-[11px] uppercase tracking-wider text-[var(--muted-2)]">Practice · {drillLabel}</div>
           <div className="text-[13px] text-[var(--muted)]">No streak · rating {isProvisional(profile.gradedCount) ? `${profile.rating}?` : profile.rating}</div>
         </div>
         <button type="button" onClick={() => { resetRound(); setPhase("hub"); }} className="text-[13px] text-[var(--muted)]">Exit</button>
       </div>
 
-      <div className="card mt-4 overflow-hidden">
-        <div className="px-2 pt-2"><SparkChart series={problem.series} /></div>
-        <div className="grid grid-cols-2 gap-px bg-[var(--border)]">
-          {problem.metrics.map((m) => (
-            <div key={m.label} className="bg-[var(--card)] px-4 py-2.5">
-              <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
-              <div className="tnum text-base font-semibold">{m.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ProblemSetup problem={problem} />
 
       <h2 className="mt-5 text-[15px] font-semibold">{problem.prompt}</h2>
       <div className="mt-3 flex flex-col gap-2">
@@ -288,8 +330,8 @@ export function PracticeGame() {
           return (
             <button key={c.id} type="button" onClick={() => { setChoice(c.id); vibrate(8); }}
               className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left"
-              style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(94,242,176,0.08)" : "var(--card)" }}>
-              <span className="grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold" style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#062013" : "var(--muted)" }}>{c.id}</span>
+              style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(240,197,96,0.10)" : "var(--card)" }}>
+              <span className="grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold" style={{ background: sel ? "var(--accent)" : "var(--card-2)", color: sel ? "#3a2c08" : "var(--muted)" }}>{c.id}</span>
               <span className="text-[15px]">{c.label}</span>
             </button>
           );
@@ -312,7 +354,7 @@ export function PracticeGame() {
             return (
               <button key={chip.id} type="button" onClick={() => setSelectedChips((prev) => sel ? prev.filter((l) => l !== chip.label) : [...prev, chip.label])}
                 className="rounded-full border px-3 py-1.5 text-[13px]"
-                style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(94,242,176,0.12)" : "var(--card-2)", color: sel ? "var(--accent)" : "var(--fg)" }}>
+                style={{ borderColor: sel ? "var(--accent)" : "var(--border)", background: sel ? "rgba(240,197,96,0.14)" : "var(--card-2)", color: sel ? "var(--accent)" : "var(--fg)" }}>
                 {chip.label}
               </button>
             );
@@ -335,4 +377,13 @@ export function PracticeGame() {
 
 function verdictToneCss(tone: VerdictTone): string {
   return ({ accent: "var(--accent)", warn: "var(--warn)", bad: "var(--bad)", fg: "var(--fg)" })[tone];
+}
+
+function SpecialBtn({ label, sub, onClick }: { label: string; sub: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="card w-full px-4 py-3 text-left">
+      <div className="text-[15px] font-semibold">{label}</div>
+      <div className="text-[12px] text-[var(--muted)]">{sub}</div>
+    </button>
+  );
 }
