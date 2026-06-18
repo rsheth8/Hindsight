@@ -1,14 +1,19 @@
 "use client";
+import { useState } from "react";
 import { useProfile } from "@/lib/profile/useProfile";
 import { conceptMastery } from "@/lib/game/concepts";
 import { personalBests, tierFromRating } from "@/lib/game/stats";
+import { DuelView } from "./DuelView";
 
 export function RankView() {
   const p = useProfile();
+  const [duel, setDuel] = useState(false);
   const bests = personalBests(p.history, p.longestStreak);
   const tier = tierFromRating(p.rating);
   const tree = conceptMastery(p.history);
   const progress = Math.min(100, Math.max(0, Math.round(((p.rating - 1000) / (tier.next - 1000)) * 100)));
+
+  if (duel) return <DuelView onExit={() => setDuel(false)} />;
 
   return (
     <div className="animate-rise">
@@ -23,6 +28,21 @@ export function RankView() {
           <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.max(4, progress)}%` }} />
         </div>
       </div>
+
+      <button
+        onClick={() => setDuel(true)}
+        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[var(--accent)] bg-[rgba(94,242,176,0.06)] px-4 py-4 text-left transition hover:bg-[rgba(94,242,176,0.1)]"
+      >
+        <div>
+          <div className="text-base font-extrabold">⚔️  Duel someone</div>
+          <div className="mt-0.5 text-[12px] text-[var(--muted)]">Head-to-head on the same setup. Sharper read wins.</div>
+        </div>
+        <div className="ml-3 text-right">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--muted-2)]">Duel</div>
+          <div className="tnum text-xl font-extrabold text-[var(--accent)]">{p.duelRating ?? 1000}</div>
+          <div className="text-[10px] text-[var(--muted-2)]">{p.duelWins ?? 0}W · {p.duelLosses ?? 0}L</div>
+        </div>
+      </button>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Best label="This week cal." value={bests.thisWeekCalibration !== null ? String(bests.thisWeekCalibration) : "—"} sub={`${bests.thisWeekCalls} daily`} />

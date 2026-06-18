@@ -6,6 +6,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { START_RATING } from "./game/rating";
+import { START_DUEL_RATING } from "./game/duel";
 import { computeStreakUpdate, FREEZES_PER_WEEK } from "./game/streak";
 import type { ConceptId } from "./game/concept-types";
 
@@ -43,6 +44,12 @@ export interface Profile {
   reminderHour: number;
   reminderMinute: number;
   history: JournalEntry[];
+  /** Duels — a separate PvP ladder from the daily Judgment rating. */
+  duelRating: number;
+  duelMatchesPlayed: number;
+  duelWins: number;
+  duelLosses: number;
+  duelDraws: number;
 }
 
 const KEY = "hindsight.profile.v1";
@@ -60,6 +67,11 @@ export function emptyProfile(): Profile {
     reminderHour: 18,
     reminderMinute: 0,
     history: [],
+    duelRating: START_DUEL_RATING,
+    duelMatchesPlayed: 0,
+    duelWins: 0,
+    duelLosses: 0,
+    duelDraws: 0,
   };
 }
 
@@ -72,6 +84,7 @@ interface Ctx {
   ready: boolean;
   record: (entry: JournalEntry) => Promise<void>;
   recordPractice: (entry: JournalEntry) => Promise<void>;
+  recordDuel: (args: { ratingAfter: number; result: "win" | "loss" | "draw" }) => Promise<void>;
   updateSettings: (patch: Partial<Pick<Profile, "reminderEnabled" | "reminderHour" | "reminderMinute">>) => Promise<void>;
 }
 
@@ -143,6 +156,21 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const recordDuel = useCallback(async (args: { ratingAfter: number; result: "win" | "loss" | "draw" }) => {
+    setProfile((p) => {
+      const next: Profile = {
+        ...p,
+        duelRating: Math.round(args.ratingAfter),
+        duelMatchesPlayed: (p.duelMatchesPlayed ?? 0) + 1,
+        duelWins: (p.duelWins ?? 0) + (args.result === "win" ? 1 : 0),
+        duelLosses: (p.duelLosses ?? 0) + (args.result === "loss" ? 1 : 0),
+        duelDraws: (p.duelDraws ?? 0) + (args.result === "draw" ? 1 : 0),
+      };
+      AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const updateSettings = useCallback(async (patch: Partial<Pick<Profile, "reminderEnabled" | "reminderHour" | "reminderMinute">>) => {
     setProfile((p) => {
       const next = { ...p, ...patch };
@@ -151,7 +179,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ profile, ready, record, recordPractice, updateSettings }), [profile, ready, record, recordPractice, updateSettings]);
+  const value = useMemo(() => ({ profile, ready, record, recordPractice, recordDuel, updateSettings }), [profile, ready, record, recordPractice, recordDuel, updateSettings]);
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
 

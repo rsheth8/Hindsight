@@ -34,7 +34,7 @@ function newSeed() {
 export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
   const { profile, recordPractice } = useProfile();
   const { width } = useWindowDimensions();
-  const chartW = Math.min(width, 440) - 40 - 8;
+  const chartW = Math.max(280, Math.min(width, 440) - 48);
   const focus = useMemo(() => derivePracticeFocus(profile.history), [profile.history]);
 
   const [seed] = useState(newSeed);

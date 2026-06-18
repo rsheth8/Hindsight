@@ -4,7 +4,7 @@
  * trivia app can do. Falls back to a transparent heuristic with no key.
  */
 import { aiMessage, hasAnthropicKey } from "./client";
-import type { SolvedProblem } from "@/lib/game/types";
+import type { ChoiceId, SetupMetric, SolvedProblem } from "@/lib/game/types";
 
 export type Depth = "learn" | "analyst" | "quant";
 
@@ -69,11 +69,11 @@ export async function gradeReasoning(args: {
 export async function explainReveal(args: {
   problem: SolvedProblem;
   correct: boolean;
-  choice: string;
+  choice: ChoiceId;
   depth: Depth;
 }): Promise<string> {
   const { problem, correct, choice, depth } = args;
-  if (!hasAnthropicKey()) return heuristicExplanation(problem, correct);
+  if (!hasAnthropicKey()) return heuristicExplanation(problem, correct, choice);
 
   const depthGuide = {
     learn: "Explain like a friendly coach to a beginner. Short sentences, define any jargon.",
@@ -81,22 +81,30 @@ export async function explainReveal(args: {
     quant: "Explain to a sophisticated investor. Be precise and dense; reference base rates.",
   }[depth];
 
+  const correctLabel = problem.choices.find((c) => c.id === problem.answer)?.label;
+  const playerLabel = problem.choices.find((c) => c.id === choice)?.label;
+
   const context = JSON.stringify({
     metrics: problem.metrics,
     outcome: problem.reveal,
-    correctAnswer: problem.choices.find((c) => c.id === problem.answer)?.label,
-    playerChose: choice,
+    correctAnswer: correctLabel,
+    playerChose: playerLabel,
+    forwardReturnPct: problem.reveal.forwardReturnPct,
   });
+
+  const wrongGuide = correct
+    ? "Affirm what they read well, then one nuance they could still weigh next time."
+    : `The player was WRONG. Your first sentence must name their bucket ("${playerLabel}") vs the correct bucket ("${correctLabel}") and the actual ${problem.reveal.forwardReturnPct}% move. Then explain which on-screen signals supported the correct call and why their read was tempting but off. Do not hand-wave with "ambiguous" without citing evidence.`;
 
   try {
     return await aiMessage({
       tier: "fast",
-      maxTokens: 320,
+      maxTokens: 360,
       temperature: 0.4,
       system: [
         {
           type: "text",
-          text: `You are Hindsight's coach. ${depthGuide} In 3–4 sentences, explain what the setup was signaling and why the 3-month move happened, focused on the *judgment*, not a stock tip. Never give buy/sell advice. Be encouraging. The ticker was ${problem.reveal.ticker} (${problem.reveal.company}).`,
+          text: `You are Hindsight's coach. ${depthGuide} In 3–5 sentences, explain what the setup was signaling and why the 3-month move happened, focused on the *judgment*, not a stock tip. Never give buy/sell advice. Be direct but encouraging. The ticker was ${problem.reveal.ticker} (${problem.reveal.company}). ${wrongGuide}`,
         },
         { type: "text", text: `Reveal context:\n${context}`, cache_control: { type: "ephemeral" } },
       ],
@@ -104,7 +112,7 @@ export async function explainReveal(args: {
     });
   } catch (err) {
     console.error("[grade] AI explanation failed, heuristic fallback:", err);
-    return heuristicExplanation(problem, correct);
+    return heuristicExplanation(problem, correct, choice);
   }
 }
 
@@ -117,7 +125,7 @@ function heuristicGrade(reasoning: string): ReasoningGrade {
 
   const lc = text.toLowerCase();
   const cites = /(trend|momentum|volatil|drawdown|average|50-day|high|support|resistance|return|range|risk)/.test(lc);
-  const counter = /(however|but|although|risk|could|might|uncertain|if|unless|downside|upside|counter)/.test(lc);
+  const counter = /(however|but|although|risk|could|might|uncertain|mixed|if|unless|downside|upside|counter|limited edge)/.test(lc);
   const change = /(change my mind|would change|if it|break|invalidate|reconsider|wrong if)/.test(lc);
 
   let score = 0.3;
@@ -135,10 +143,37 @@ function heuristicGrade(reasoning: string): ReasoningGrade {
   return { score, notes };
 }
 
-function heuristicExplanation(problem: SolvedProblem, correct: boolean): string {
+function parseMetricPct(value: string): number {
+  return parseFloat(value.replace(/[^0-9.-]/g, "")) || 0;
+}
+
+function setupSignalLine(metrics: SetupMetric[]): string {
+  const ret = parseMetricPct(metrics.find((m) => m.label.includes("6-month"))?.value ?? "0");
+  const vol = parseMetricPct(metrics.find((m) => m.label.includes("volatility"))?.value ?? "0");
+  const vsMa = metrics.find((m) => m.label.includes("50-day"))?.value ?? "";
+  const parts: string[] = [];
+  if (ret > 8) parts.push("strong trailing momentum");
+  else if (ret < -8) parts.push("a weak trailing trend");
+  if (vol >= 35) parts.push("high volatility (wider outcome bands)");
+  if (vsMa.includes("+")) parts.push("price above the 50-day average");
+  else if (vsMa.includes("-")) parts.push("price below the 50-day average");
+  return parts.length ? `The visible setup showed ${parts.join(", ")}.` : "The chart mixed bullish and bearish cues.";
+}
+
+function heuristicExplanation(problem: SolvedProblem, correct: boolean, choice: ChoiceId): string {
   const r = problem.reveal;
-  const dir = r.forwardReturnPct > 0 ? "rose" : "fell";
-  return `This was ${r.company} (${r.ticker}). Over the next 3 months it ${dir} ${Math.abs(r.forwardReturnPct)}%, which lands on "${problem.choices.find((c) => c.id === problem.answer)?.label}". ${correct ? "You read the setup well." : "The setup was genuinely ambiguous — the value is in the calibration, not the call."} Remember: over three months, a single move is mostly noise. What compounds is reading the evidence honestly and sizing your confidence to it.`;
+  const correctLabel = problem.choices.find((c) => c.id === problem.answer)?.label ?? problem.answer;
+  const playerLabel = problem.choices.find((c) => c.id === choice)?.label ?? choice;
+  const ret = `${r.forwardReturnPct >= 0 ? "+" : ""}${r.forwardReturnPct}%`;
+  const move =
+    r.forwardReturnPct > 0 ? `rose ${ret}` : r.forwardReturnPct < 0 ? `fell ${ret}` : `finished near flat (${ret})`;
+  const signals = setupSignalLine(problem.metrics);
+
+  if (correct) {
+    return `This was ${r.company} (${r.ticker}). Over 3 months it ${move}, landing in "${correctLabel}" — matching your call. ${signals} You read those cues in the right direction. What compounds is sizing confidence to the evidence, not chasing every move.`;
+  }
+
+  return `This was ${r.company} (${r.ticker}). You called "${playerLabel}", but the stock ${move} over 3 months, so the correct bucket was "${correctLabel}". ${signals} A common miss here: overweighting the recent trend or underweighting volatility when the forward window can still surprise. The goal isn't being right every time — it's calibrating how much each setup actually tells you.`;
 }
 
 function extractJson(s: string): string {

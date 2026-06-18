@@ -11,6 +11,7 @@ import { JournalScreen } from "./src/screens/JournalScreen";
 import { PracticeScreen } from "./src/screens/PracticeScreen";
 import { BlindReplayScreen } from "./src/screens/BlindReplayScreen";
 import { RankScreen } from "./src/screens/RankScreen";
+import { DuelScreen } from "./src/screens/DuelScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { C } from "./src/theme";
 
@@ -19,6 +20,7 @@ const ONBOARD_KEY = "hindsight.onboarded.v1";
 function Shell() {
   const [tab, setTab] = useState<TabKey>("daily");
   const [blindReplay, setBlindReplay] = useState(false);
+  const [duel, setDuel] = useState(false);
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -27,12 +29,13 @@ function Shell() {
           {tab === "daily" && <DailyScreen />}
           {tab === "practice" && !blindReplay && <PracticeScreen onBlindReplay={() => setBlindReplay(true)} />}
           {tab === "practice" && blindReplay && <BlindReplayScreen onExit={() => setBlindReplay(false)} />}
-          {tab === "rank" && <RankScreen />}
+          {tab === "rank" && !duel && <RankScreen onDuel={() => setDuel(true)} />}
+          {tab === "rank" && duel && <DuelScreen onExit={() => setDuel(false)} />}
           {tab === "journal" && <JournalScreen />}
           {tab === "you" && <YouScreen />}
         </View>
       </SafeAreaView>
-      <TabBar active={tab} onChange={(t) => { setTab(t); if (t !== "practice") setBlindReplay(false); }} bottomInset={insets.bottom} />
+      <TabBar active={tab} onChange={(t) => { setTab(t); if (t !== "practice") setBlindReplay(false); if (t !== "rank") setDuel(false); }} bottomInset={insets.bottom} />
     </View>
   );
 }

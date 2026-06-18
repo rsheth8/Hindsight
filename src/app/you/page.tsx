@@ -124,10 +124,11 @@ function Ring({ pct }: { pct: number }) {
 function TrendLine({ series }: { series: number[] }) {
   const W = 320;
   const H = 56;
+  if (series.length < 2) return null;
   const min = Math.min(...series);
   const max = Math.max(...series);
   const span = max - min || 1;
-  const x = (i: number) => (series.length === 1 ? W / 2 : (i / (series.length - 1)) * W);
+  const x = (i: number) => (i / (series.length - 1)) * W;
   const y = (v: number) => 6 + (1 - (v - min) / span) * (H - 12);
   const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const rising = series[series.length - 1] >= series[0];

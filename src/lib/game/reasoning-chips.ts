@@ -10,6 +10,15 @@ export interface ReasoningChip {
   label: string;
 }
 
+/** Always available — judgment / uncertainty, not extra "metrics." */
+const JUDGMENT_CHIPS: ReasoningChip[] = [
+  { id: "mixed", label: "Mixed signals" },
+  { id: "falsifier", label: "Could reverse if trend breaks" },
+  { id: "thin-edge", label: "Limited edge here" },
+];
+
+const SETUP_CHIP_CAP = 5; // leave room for judgment chips without crowding the row
+
 function parsePct(value: string): number {
   return parseFloat(value.replace(/[^0-9.-]/g, "")) || 0;
 }
@@ -53,11 +62,12 @@ export function chipsForProblem(problem: DailyProblem): ReasoningChip[] {
   if (trendUp && fromHigh < -8) out.push({ id: "pullback", label: "Pullback from highs" });
 
   const seen = new Set<string>();
-  return out.filter((c) => {
+  const setup = out.filter((c) => {
     if (seen.has(c.id)) return false;
     seen.add(c.id);
     return true;
-  }).slice(0, 8);
+  }).slice(0, SETUP_CHIP_CAP);
+  return [...setup, ...JUDGMENT_CHIPS];
 }
 
 /** Join chip labels + optional free text into the reasoning string. */

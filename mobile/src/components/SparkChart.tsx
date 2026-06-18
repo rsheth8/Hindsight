@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useId, useMemo } from "react";
 import Svg, { Path, Line, Defs, LinearGradient, Stop, Text as SvgText } from "react-native-svg";
+import { alignContinuation } from "../lib/game/chart";
 import type { PricepointLite } from "../lib/game/types";
 import { C } from "../theme";
 
@@ -15,12 +16,22 @@ export function SparkChart({
   width: number;
   height?: number;
 }) {
+  const fillId = useId().replace(/:/g, "");
   const pad = 10;
-  const W = width;
+  const W = Math.max(280, width);
   const H = height;
 
+  const alignedContinuation = useMemo(
+    () => (continuation?.length ? alignContinuation(series, continuation) : undefined),
+    [series, continuation],
+  );
+
   const { historyPath, contPath, decisionX, minV, maxV, up } = useMemo(() => {
-    const all = [...series, ...(continuation ?? [])];
+    if (!series.length) {
+      return { historyPath: "", contPath: null, decisionX: pad, minV: 0, maxV: 0, up: true };
+    }
+
+    const all = [...series, ...(alignedContinuation ?? [])];
     const vs = all.map((p) => p.v);
     const min = Math.min(...vs);
     const max = Math.max(...vs);
@@ -35,24 +46,36 @@ export function SparkChart({
       pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
     return {
       historyPath: toPath(series),
-      contPath: continuation && continuation.length ? toPath(continuation) : null,
-      decisionX: x(series[series.length - 1].t),
+      contPath: alignedContinuation?.length ? toPath(alignedContinuation) : null,
+      decisionX: x(series[series.length - 1]!.t),
       minV: min,
       maxV: max,
-      up: continuation && continuation.length ? continuation[continuation.length - 1].v >= series[series.length - 1].v : true,
+      up: alignedContinuation?.length
+        ? alignedContinuation[alignedContinuation.length - 1]!.v >= series[series.length - 1]!.v
+        : true,
     };
-  }, [series, continuation, W, H]);
+  }, [series, alignedContinuation, W, H]);
+
+  if (!series.length) {
+    return (
+      <Svg width={W} height={H}>
+        <SvgText x={W / 2} y={H / 2} textAnchor="middle" fontSize={12} fill={C.muted2}>
+          Chart unavailable
+        </SvgText>
+      </Svg>
+    );
+  }
 
   return (
     <Svg width={W} height={H}>
       <Defs>
-        <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+        <LinearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={C.accent} stopOpacity={0.18} />
           <Stop offset="1" stopColor={C.accent} stopOpacity={0} />
         </LinearGradient>
       </Defs>
 
-      <Path d={`${historyPath} L${decisionX},${H - pad} L${pad},${H - pad} Z`} fill="url(#fill)" />
+      <Path d={`${historyPath} L${decisionX},${H - pad} L${pad},${H - pad} Z`} fill={`url(#${fillId})`} />
       <Path d={historyPath} fill="none" stroke={C.accent} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" />
 
       <Line x1={decisionX} y1={pad} x2={decisionX} y2={H - pad} stroke={C.muted2} strokeWidth={1} strokeDasharray="3,4" opacity={contPath ? 0.7 : 0.35} />

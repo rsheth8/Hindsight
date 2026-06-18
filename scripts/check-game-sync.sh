@@ -12,6 +12,8 @@ SYNC_FILES=(
   reasoning-chips.ts
   journal-entry-kind.ts
   types.ts
+  chart.ts
+  duel.ts
 )
 
 FAILED=0

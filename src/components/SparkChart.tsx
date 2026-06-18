@@ -1,5 +1,6 @@
 "use client";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
+import { alignContinuation } from "@/lib/game/chart";
 import type { PricepointLite } from "@/lib/game/types";
 
 /** Lightweight SVG price chart. Anonymized (indexed) so the level gives nothing
@@ -13,12 +14,22 @@ export function SparkChart({
   continuation?: PricepointLite[];
   height?: number;
 }) {
+  const fillId = useId().replace(/:/g, "");
   const W = 360;
   const H = height;
   const pad = 10;
 
+  const alignedContinuation = useMemo(
+    () => (continuation?.length ? alignContinuation(series, continuation) : undefined),
+    [series, continuation],
+  );
+
   const { historyPath, contPath, decisionX, minV, maxV } = useMemo(() => {
-    const all = [...series, ...(continuation ?? [])];
+    if (!series.length) {
+      return { historyPath: "", contPath: null, decisionX: pad, minV: 0, maxV: 0 };
+    }
+
+    const all = [...series, ...(alignedContinuation ?? [])];
     const vs = all.map((p) => p.v);
     const min = Math.min(...vs);
     const max = Math.max(...vs);
@@ -35,27 +46,40 @@ export function SparkChart({
 
     return {
       historyPath: toPath(series),
-      contPath: continuation && continuation.length ? toPath(continuation) : null,
-      decisionX: x(series[series.length - 1].t),
+      contPath: alignedContinuation?.length ? toPath(alignedContinuation) : null,
+      decisionX: x(series[series.length - 1]!.t),
       minV: min,
       maxV: max,
     };
-  }, [series, continuation, H]);
+  }, [series, alignedContinuation, H]);
 
-  const up = continuation && continuation.length ? continuation[continuation.length - 1].v >= series[series.length - 1].v : true;
+  if (!series.length) {
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Price history unavailable">
+        <text x={W / 2} y={H / 2} textAnchor="middle" fontSize="12" fill="var(--muted-2)">
+          Chart unavailable
+        </text>
+      </svg>
+    );
+  }
+
+  const up =
+    alignedContinuation?.length
+      ? alignedContinuation[alignedContinuation.length - 1]!.v >= series[series.length - 1]!.v
+      : true;
   const contColor = up ? "var(--up)" : "var(--down)";
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Price history">
       <defs>
-        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
           <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
         </linearGradient>
       </defs>
 
       {/* history area fill */}
-      <path d={`${historyPath} L${decisionX},${H - pad} L${pad},${H - pad} Z`} fill="url(#fill)" />
+      <path d={`${historyPath} L${decisionX},${H - pad} L${pad},${H - pad} Z`} fill={`url(#${fillId})`} />
       {/* history line */}
       <path d={historyPath} fill="none" stroke="var(--accent)" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
 

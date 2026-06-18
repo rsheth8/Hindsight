@@ -28,7 +28,7 @@ describe("reasoning-chips", () => {
     expect(labels).toContain("Uptrend");
   });
 
-  it("caps chips at 8 unique ids", () => {
+  it("caps setup chips and always includes judgment chips", () => {
     const problem = mockDailyProblem({
       metrics: [
         { label: "6-month return", value: "+20.0%" },
@@ -38,7 +38,11 @@ describe("reasoning-chips", () => {
         { label: "Vs 50-day average", value: "+12.0%" },
       ],
     });
-    expect(chipsForProblem(problem).length).toBeLessThanOrEqual(8);
+    const labels = chipsForProblem(problem).map((c) => c.label);
+    expect(labels.length).toBeLessThanOrEqual(8);
+    expect(labels).toContain("Mixed signals");
+    expect(labels).toContain("Could reverse if trend breaks");
+    expect(labels).toContain("Limited edge here");
   });
 
   it("handles missing metrics without throwing", () => {

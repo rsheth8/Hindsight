@@ -13,6 +13,7 @@ describe("env", () => {
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.KV_REST_API_URL;
     delete process.env.KV_REST_API_TOKEN;
+    delete process.env.ABLY_API_KEY;
     delete process.env.NEXT_PUBLIC_APP_URL;
   });
 
@@ -38,6 +39,13 @@ describe("env", () => {
       fmp: "fallback",
       ai: "heuristic",
       submissions: "file",
+      duelStore: "file",
+      realtime: "polling",
     });
+  });
+
+  it("serverMode reports ably realtime when ABLY_API_KEY is set", () => {
+    process.env.ABLY_API_KEY = "abc.def:ghi";
+    expect(serverMode().realtime).toBe("ably");
   });
 });

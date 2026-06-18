@@ -4,6 +4,7 @@
  * roadmap item; the shape here is deliberately server-friendly.
  */
 import { START_RATING } from "@/lib/game/rating";
+import { START_DUEL_RATING } from "@/lib/game/duel";
 import { computeStreakUpdate, FREEZES_PER_WEEK } from "@/lib/game/streak";
 import type { ConceptId } from "@/lib/game/concepts";
 
@@ -39,6 +40,12 @@ export interface Profile {
   streakFreezes: number;
   freezeWeekKey: string | null;
   history: JournalEntry[];
+  /** Duels — a separate PvP ladder from the daily Judgment rating. */
+  duelRating: number;
+  duelMatchesPlayed: number;
+  duelWins: number;
+  duelLosses: number;
+  duelDraws: number;
 }
 
 const KEY = "hindsight.profile.v1";
@@ -54,6 +61,11 @@ export function emptyProfile(): Profile {
     streakFreezes: FREEZES_PER_WEEK,
     freezeWeekKey: null,
     history: [],
+    duelRating: START_DUEL_RATING,
+    duelMatchesPlayed: 0,
+    duelWins: 0,
+    duelLosses: 0,
+    duelDraws: 0,
   };
 }
 
@@ -114,6 +126,7 @@ export function recordResult(entry: JournalEntry): Profile {
   });
 
   const next: Profile = {
+    ...p,
     rating: entry.ratingAfter,
     gradedCount: p.gradedCount + 1,
     streak: streakUpdate.streak,
@@ -133,6 +146,7 @@ export function recordPracticeResult(entry: JournalEntry): Profile {
   if (p.history.some((h) => h.problemId === entry.problemId)) return p;
 
   const next: Profile = {
+    ...p,
     rating: entry.ratingAfter,
     gradedCount: p.gradedCount + 1,
     streak: p.streak,
@@ -141,6 +155,21 @@ export function recordPracticeResult(entry: JournalEntry): Profile {
     streakFreezes: p.streakFreezes ?? FREEZES_PER_WEEK,
     freezeWeekKey: p.freezeWeekKey ?? null,
     history: [entry, ...p.history].slice(0, 365),
+  };
+  save(next);
+  return next;
+}
+
+/** Record a finished duel — updates the separate duel rating + W/L/D tally. */
+export function recordDuelResult(args: { ratingAfter: number; result: "win" | "loss" | "draw" }): Profile {
+  const p = loadProfile();
+  const next: Profile = {
+    ...p,
+    duelRating: Math.round(args.ratingAfter),
+    duelMatchesPlayed: (p.duelMatchesPlayed ?? 0) + 1,
+    duelWins: (p.duelWins ?? 0) + (args.result === "win" ? 1 : 0),
+    duelLosses: (p.duelLosses ?? 0) + (args.result === "loss" ? 1 : 0),
+    duelDraws: (p.duelDraws ?? 0) + (args.result === "draw" ? 1 : 0),
   };
   save(next);
   return next;

@@ -25,6 +25,7 @@ import {
   type PracticeFocus,
 } from "../lib/game/practice";
 import { verdict as getVerdict, transferableSkill, verdictToneColor } from "../lib/game/progress";
+import { COACH } from "../lib/coach";
 import type { ChoiceId, DailyProblem, GradeResult } from "../lib/game/types";
 import type { Depth } from "../lib/grade-types";
 import { C } from "../theme";
@@ -38,7 +39,7 @@ function newSeed() {
 export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }) {
   const { profile, ready, recordPractice } = useProfile();
   const { width } = useWindowDimensions();
-  const chartW = Math.min(width, 440) - 40 - 8;
+  const chartW = Math.max(280, Math.min(width, 440) - 48);
 
   const focus = useMemo(() => derivePracticeFocus(profile.history), [profile.history]);
   const [phase, setPhase] = useState<Phase>("hub");
@@ -187,12 +188,14 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
     );
   }
 
-  if (phase === "reveal" && result) {
+  if (phase === "reveal" && result && choice) {
     const v = getVerdict(result);
     const skill = transferableSkill(problem, result);
     const r = result.reveal;
     const up = r.forwardReturnPct >= 0;
     const calib = 1 - result.brier;
+    const playerLabel = problem.choices.find((c) => c.id === choice)!.label;
+    const correctLabel = problem.choices.find((c) => c.id === result.answer)!.label;
 
     return (
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
@@ -211,18 +214,54 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
         </View>
 
         <View style={{ flexDirection: "row", gap: 8, marginTop: 20 }}>
-          <MiniScore label="Outcome" emoji={result.correct ? "🟩" : "🟥"} />
+          <MiniScore label="Outcome" emoji={result.correct ? "🟩" : "🟥"} sub={result.correct ? "Correct" : "Missed"} />
           <MiniScore label="Calibration" emoji={calib > 0.8 ? "🟩" : calib > 0.55 ? "🟨" : "🟥"} />
           <MiniScore label="Reasoning" emoji={result.reasoning >= 0.66 ? "🟩" : result.reasoning >= 0.4 ? "🟨" : "🟥"} />
         </View>
 
+        {!result.correct && (
+          <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.warn, borderLeftWidth: 3, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14, marginTop: 16 }}>
+            <Text style={{ fontSize: 11, letterSpacing: 1, color: C.warn, textTransform: "uppercase", fontWeight: "700" }}>What you missed</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: C.fg }}>
+              You called <Text style={{ fontWeight: "700" }}>{playerLabel}</Text> at {confidence}% confidence.
+            </Text>
+            <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: C.muted }}>
+              Correct answer: <Text style={{ fontWeight: "700", color: C.accent }}>{correctLabel}</Text>
+              {" "}— the stock moved {up ? "+" : ""}{r.forwardReturnPct}% over {problem.horizonLabel}.
+            </Text>
+          </View>
+        )}
+
         <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 16 }}>
-          <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: C.fg }}>{r.company}</Text>
-            <Text style={{ fontSize: 20, fontWeight: "700", color: up ? C.up : C.down, fontVariant: ["tabular-nums"] }}>{up ? "+" : ""}{r.forwardReturnPct}%</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14 }}>
+            <View>
+              <Text style={{ fontSize: 11, color: C.muted2 }}>It was</Text>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: C.fg }}>{r.company} <Text style={{ color: C.muted }}>{problem.live ? r.ticker : "(demo)"}</Text></Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 11, color: C.muted2 }}>Next {problem.horizonLabel}</Text>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: up ? C.up : C.down, fontVariant: ["tabular-nums"] }}>{up ? "+" : ""}{r.forwardReturnPct}%</Text>
+            </View>
           </View>
           <View style={{ paddingHorizontal: 4, paddingTop: 8, alignItems: "center" }}>
             <SparkChart series={problem.series} continuation={r.continuation} width={chartW} />
+          </View>
+          <Text style={{ paddingHorizontal: 16, paddingBottom: 12, fontSize: 11, color: C.muted2 }}>
+            correct: <Text style={{ fontWeight: "700", color: C.fg }}>{correctLabel}</Text>
+          </Text>
+        </View>
+
+        <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: C.fg }}>{COACH.emoji} {COACH.name}&apos;s read</Text>
+            <DepthToggle depth={depth} setDepth={setDepth} />
+          </View>
+          <Text style={{ fontSize: 14, lineHeight: 21, color: C.fg }}>{result.explanation}</Text>
+          <View style={{ marginTop: 12, borderRadius: 12, backgroundColor: C.card2, paddingHorizontal: 12, paddingVertical: 10 }}>
+            <Text style={{ fontSize: 13, color: C.muted }}>
+              <Text style={{ fontWeight: "700", color: C.fg }}>On your reasoning: </Text>
+              {result.reasoningNotes}
+            </Text>
           </View>
         </View>
 
@@ -327,11 +366,25 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
   );
 }
 
-function MiniScore({ label, emoji }: { label: string; emoji: string }) {
+function MiniScore({ label, emoji, sub }: { label: string; emoji: string; sub?: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 14, paddingVertical: 10, alignItems: "center" }}>
       <Text style={{ fontSize: 20 }}>{emoji}</Text>
       <Text style={{ marginTop: 4, fontSize: 10, fontWeight: "700", color: C.fg }}>{label}</Text>
+      {sub ? <Text style={{ marginTop: 2, fontSize: 10, color: C.muted }}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+function DepthToggle({ depth, setDepth }: { depth: Depth; setDepth: (d: Depth) => void }) {
+  const opts: Depth[] = ["learn", "analyst", "quant"];
+  return (
+    <View style={{ flexDirection: "row", backgroundColor: C.card2, borderRadius: 8, padding: 2 }}>
+      {opts.map((o) => (
+        <Pressable key={o} onPress={() => setDepth(o)} style={{ borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: depth === o ? C.accent : "transparent" }}>
+          <Text style={{ fontSize: 10, textTransform: "capitalize", color: depth === o ? C.accentInk : C.muted }}>{o}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }

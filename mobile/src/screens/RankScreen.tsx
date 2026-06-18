@@ -1,11 +1,12 @@
 import React from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useProfile } from "../lib/profile";
 import { conceptMastery } from "../lib/game/concepts";
 import { personalBests, tierFromRating } from "../lib/game/stats";
 import { C } from "../theme";
 
-export function RankScreen() {
+export function RankScreen({ onDuel }: { onDuel?: () => void }) {
   const { profile: p } = useProfile();
   const bests = personalBests(p.history, p.longestStreak);
   const tier = tierFromRating(p.rating);
@@ -25,6 +26,21 @@ export function RankScreen() {
           <View style={{ height: "100%", width: `${Math.max(4, progress)}%`, backgroundColor: C.accent, borderRadius: 999 }} />
         </View>
       </View>
+
+      <Pressable
+        onPress={() => { Haptics.selectionAsync(); onDuel?.(); }}
+        style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: C.accent, backgroundColor: "rgba(94,242,176,0.06)", paddingHorizontal: 18, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: "800", color: C.fg }}>⚔️  Duel someone</Text>
+          <Text style={{ marginTop: 3, fontSize: 12, color: C.muted }}>Head-to-head on the same setup. Sharper read wins.</Text>
+        </View>
+        <View style={{ alignItems: "flex-end", marginLeft: 12 }}>
+          <Text style={{ fontSize: 10, color: C.muted2, textTransform: "uppercase", letterSpacing: 0.5 }}>Duel</Text>
+          <Text style={{ fontSize: 20, fontWeight: "800", color: C.accent, fontVariant: ["tabular-nums"] }}>{p.duelRating ?? 1000}</Text>
+          <Text style={{ fontSize: 10, color: C.muted2 }}>{p.duelWins ?? 0}W · {p.duelLosses ?? 0}L</Text>
+        </View>
+      </Pressable>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
         <Best label="This week cal." value={bests.thisWeekCalibration !== null ? String(bests.thisWeekCalibration) : "—"} sub={`${bests.thisWeekCalls} daily`} />

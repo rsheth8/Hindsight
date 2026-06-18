@@ -26,7 +26,7 @@ type Phase = "loading" | "commit" | "grading" | "reveal";
 export function DailyScreen() {
   const { profile, ready, record } = useProfile();
   const { width } = useWindowDimensions();
-  const chartW = Math.min(width, 440) - 40 - 8;
+  const chartW = Math.max(280, Math.min(width, 440) - 48);
 
   const [problem, setProblem] = useState<DailyProblem | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");

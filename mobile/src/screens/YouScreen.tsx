@@ -19,7 +19,7 @@ export function YouScreen() {
   const ringPct = ready.score;
   const trend = skillTrend(p.history);
   const tips = insights(p.history);
-  const trackW = Math.min(width, 440) - 40 - 40; // screen − page pad − card pad
+  const trackW = Math.max(240, Math.min(width, 440) - 80);
   const [reminderBlocked, setReminderBlocked] = useState(false);
 
   useEffect(() => {
@@ -188,15 +188,17 @@ function Ring({ pct }: { pct: number }) {
 
 function TrendLine({ series, width }: { series: number[]; width: number }) {
   const H = 56;
+  const W = Math.max(240, width);
+  if (series.length < 2) return null;
   const min = Math.min(...series), max = Math.max(...series);
   const span = max - min || 1;
-  const x = (i: number) => (series.length === 1 ? width / 2 : (i / (series.length - 1)) * width);
+  const x = (i: number) => (i / (series.length - 1)) * W;
   const y = (v: number) => 6 + (1 - (v - min) / span) * (H - 12);
   const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const rising = series[series.length - 1] >= series[0];
   return (
     <View style={{ marginTop: 12 }}>
-      <Svg width={width} height={H}>
+      <Svg width={W} height={H}>
         <Polyline points={pts} fill="none" stroke={rising ? C.accent : C.bad} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" />
       </Svg>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>

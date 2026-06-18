@@ -178,6 +178,8 @@ export function PracticeGame() {
     const r = result.reveal;
     const up = r.forwardReturnPct >= 0;
     const toneColor = verdictToneCss(v.tone);
+    const playerLabel = choice ? problem.choices.find((c) => c.id === choice)?.label : null;
+    const correctLabel = problem.choices.find((c) => c.id === result.answer)?.label;
 
     return (
       <div className="animate-rise">
@@ -195,12 +197,29 @@ export function PracticeGame() {
           <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--muted)]">{v.line}</p>
         </div>
 
+        {!result.correct && playerLabel && (
+          <div className="card mt-4 border-l-[3px] px-4 py-4" style={{ borderLeftColor: "var(--warn)" }}>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--warn)]">What you missed</div>
+            <p className="mt-2 text-[14px] leading-relaxed">
+              You called <span className="font-semibold text-[var(--fg)]">{playerLabel}</span> at {confidence}% confidence.
+            </p>
+            <p className="mt-1 text-[14px] leading-relaxed text-[var(--muted)]">
+              Correct answer: <span className="font-semibold text-[var(--accent)]">{correctLabel}</span>
+              {" "}— the stock moved {up ? "+" : ""}{r.forwardReturnPct}% over {problem.horizonLabel}.
+            </p>
+          </div>
+        )}
+
         <div className="card mt-5 overflow-hidden">
           <div className="px-4 pt-4">
-            <div className="text-lg font-bold">{r.company}</div>
+            <div className="text-[11px] text-[var(--muted-2)]">It was</div>
+            <div className="text-lg font-bold">{r.company} <span className="text-[var(--muted)]">{problem.live ? r.ticker : "(demo)"}</span></div>
             <div className="tnum text-xl font-bold" style={{ color: up ? "var(--up)" : "var(--down)" }}>{up ? "+" : ""}{r.forwardReturnPct}%</div>
           </div>
           <div className="px-2 pt-2"><SparkChart series={problem.series} continuation={r.continuation} /></div>
+          <div className="px-4 pb-3 text-[11px] text-[var(--muted-2)]">
+            correct answer: <span className="font-semibold text-[var(--fg)]">{correctLabel}</span>
+          </div>
         </div>
 
         <div className="card mt-4 px-4 py-4">

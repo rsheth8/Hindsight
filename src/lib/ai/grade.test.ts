@@ -28,4 +28,11 @@ describe("grade (heuristic path)", () => {
     expect(text).toContain(problem.reveal.company);
     expect(text.toLowerCase()).not.toMatch(/\bbuy\b|\bsell\b/);
   });
+
+  it("explainReveal names the miss when the player was wrong", async () => {
+    const text = await explainReveal({ problem, correct: false, choice: "C", depth: "learn" });
+    expect(text).toContain('You called "Fell more than 10%"');
+    expect(text).toContain('"Gained more than 10%"');
+    expect(text).toContain("+14.2%");
+  });
 });
