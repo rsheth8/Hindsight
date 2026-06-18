@@ -21,8 +21,8 @@ architecture, and `docs/handoff.md` for the full product vision.
   0.40). Keep the luck filter intact — `src/lib/game/rating.ts`.
 - Educational only — **never** generate buy/sell advice in copy or AI prompts.
 - Mobile-first, dark, number-as-hero. Effects stay compositor-cheap (no heavy WebGL).
-- The "how players answered" crowd split is **synthetic/illustrative** until real
-  telemetry exists — it's labelled as such; don't present it as real.
+- Crowd split is **real** once ≥3 server submissions exist for a problem; otherwise
+  **illustrative*** — always labelled in the UI.
 
 ## Native iOS app — `mobile/` (Expo SDK 56 / RN 0.85)
 The App Store client. **Architecture:** the Next.js app is the *backend* (its `/api/daily`
@@ -31,36 +31,32 @@ in `src/lib/game/` (copied into `mobile/src/lib/game/`). Keys stay server-side; 
 only calls the backend over HTTPS (native `fetch`, so no CORS needed).
 - Run: backend `npm run dev` (:3000) **and** `cd mobile && npx expo start` → press `i`.
   iOS simulator reaches the Mac at `localhost:3000` (the default `API_BASE`).
-- Mobile mirrors the same screens (Daily commit+reveal, You, Journal, Practice/Rank stubs)
-  with native haptics, AsyncStorage persistence, and a `react-native-svg` SparkChart.
+- Mobile mirrors the same screens (Daily, Practice, Blind replay, Rank, You, Journal)
+  with native haptics, AsyncStorage persistence, share cards, and reminders.
 - Ship: EAS Build (`mobile/eas.json`) → set `EXPO_PUBLIC_API_BASE` to the deployed backend.
-  Full steps in `docs/app-store-checklist.md`. `npx expo-doctor` is green; `expo export`
-  validates the prod bundle. **Heed `mobile/AGENTS.md`** — SDK 56 changed APIs (e.g. splash
-  moved to the `expo-splash-screen` plugin); read the versioned docs before editing config.
+  Full steps in `docs/app-store-checklist.md`. Privacy/support pages at `/privacy` and
+  `/support` on the web app (use as App Store URLs).
 - If you edit shared game logic in `src/lib/game/`, copy the change into
   `mobile/src/lib/game/` too (they're duplicated, not symlinked).
-- **Niche / "you're getting better IRL" features (mobile-only so far)** — see
-  `docs/market-research.md` for the positioning (calibration-first; the luck filter is the
-  wedge no competitor has). `mobile/src/lib/game/progress.ts` powers: the reveal
-  **Lucky/Earned verdict**, the **"what you just practiced"** transferable-skill line, the
-  You-screen **trajectory** (recent-vs-early calibration/reasoning), and personalized
-  **edge & leak** insights. Web `/you` does NOT have these yet — mirror if you want parity.
+- **Progress features** (`src/lib/game/progress.ts`): Lucky/Earned verdict, transferable
+  skill line, You-screen trajectory, edge/leak insights — on **web and mobile**.
 
-## Next TODOs
-- P2: render the share result as an actual image card (currently emoji/text share).
-- P2 (beginner UX): tap-to-build reasoning chips + a provisional "grace period" so thin
-  reasoning can't sink a new player's rating (the reasoning input is the moat *and* the main
-  beginner-churn risk — keep it, but remove the blank-page friction).
-- P3: persist submissions server-side for a *real* crowd split + leaderboard. This same
-  backend unlocks **leagues** — design is decided in `docs/leagues-design.md` (earned
-  auto-promotion, calibration-based, NOT self-chosen; Phase 1 global board → Phase 2 weekly
-  cohorts; gated on accounts + ~200+ WAU density).
-- Profile is localStorage/AsyncStorage only; cloud sync + accounts are later.
-- Mobile is backend-dependent (graceful error screen if offline) — in-app fallback is a maybe.
-- SnapTrade read-only brokerage bridge (P5) — never place trades.
+## Next TODOs (pre-launch / post-launch)
+- **You:** deploy backend (Vercel), add KV for production crowd store, `eas init` + App Store
+  accounts, set `EXPO_PUBLIC_API_BASE` in `mobile/eas.json`.
+- **P2:** accounts + cloud profile sync + global calibration leaderboard.
+- **P3:** leagues (see `docs/leagues-design.md`) — needs ~200+ WAU.
+- **P4:** more practice modes (spot-the-flaw, valuation puzzle, calibration bet).
+- **P5:** SnapTrade read-only brokerage bridge (gated by rating) — never place trades.
 
 ```bash
 npm run dev                  # backend + web, localhost:3000
 npm run build                # typechecks + prod build (web)
+npm test                     # vitest — unit + API (89 tests)
+npm run test:coverage        # with HTML coverage report
+npm run test:e2e             # Playwright smoke against prod build
+npm run test:ci              # full CI suite (lint + coverage + sync + build)
 cd mobile && npx expo start  # native app (press i for iOS simulator)
+curl localhost:3000/api/health  # which backends are live vs fallback
 ```
+See `docs/TESTING.md` for the full testing regime.

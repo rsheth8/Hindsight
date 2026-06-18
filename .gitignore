@@ -42,3 +42,9 @@ next-env.d.ts
 
 # local submission store
 .data/
+.data-test/
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/

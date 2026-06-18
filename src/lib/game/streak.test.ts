@@ -1,51 +1,71 @@
 import { describe, expect, it } from "vitest";
-import { computeStreakUpdate, FREEZES_PER_WEEK } from "./streak";
+import { FREEZES_PER_WEEK, isoWeekKey, dayGap, computeStreakUpdate } from "./streak";
 
 describe("streak", () => {
-  it("extends streak on consecutive days", () => {
-    const r = computeStreakUpdate({
-      lastPlayedDate: "2026-06-15",
+  it("increments on consecutive days", () => {
+    const u = computeStreakUpdate({
+      lastPlayedDate: "2026-06-16",
       currentStreak: 3,
-      playDate: "2026-06-16",
+      playDate: "2026-06-17",
       streakFreezes: 1,
       freezeWeekKey: null,
     });
-    expect(r.streak).toBe(4);
-    expect(r.usedFreeze).toBe(false);
+    expect(u.streak).toBe(4);
+    expect(u.usedFreeze).toBe(false);
   });
 
-  it("uses freeze when exactly one day missed", () => {
-    const r = computeStreakUpdate({
+  it("uses freeze on exactly one missed day", () => {
+    const u = computeStreakUpdate({
+      lastPlayedDate: "2026-06-15",
+      currentStreak: 5,
+      playDate: "2026-06-17",
+      streakFreezes: 1,
+      freezeWeekKey: isoWeekKey("2026-06-15"),
+    });
+    expect(u.streak).toBe(6);
+    expect(u.usedFreeze).toBe(true);
+    expect(u.streakFreezes).toBe(0);
+  });
+
+  it("resets after gap > 1 without freeze", () => {
+    const u = computeStreakUpdate({
       lastPlayedDate: "2026-06-14",
       currentStreak: 5,
-      playDate: "2026-06-16",
-      streakFreezes: 1,
-      freezeWeekKey: "2026-W24",
-    });
-    expect(r.streak).toBe(6);
-    expect(r.usedFreeze).toBe(true);
-    expect(r.streakFreezes).toBe(0);
-  });
-
-  it("resets streak after multi-day gap without freeze", () => {
-    const r = computeStreakUpdate({
-      lastPlayedDate: "2026-06-10",
-      currentStreak: 5,
-      playDate: "2026-06-16",
+      playDate: "2026-06-17",
       streakFreezes: 0,
       freezeWeekKey: null,
     });
-    expect(r.streak).toBe(1);
+    expect(u.streak).toBe(1);
   });
 
-  it("replenishes freezes on new week", () => {
-    const r = computeStreakUpdate({
-      lastPlayedDate: null,
-      currentStreak: 0,
-      playDate: "2026-06-16",
+  it("replenishes freezes on new ISO week", () => {
+    const u = computeStreakUpdate({
+      lastPlayedDate: "2026-06-07",
+      currentStreak: 2,
+      playDate: "2026-06-17",
       streakFreezes: 0,
-      freezeWeekKey: "2026-W20",
+      freezeWeekKey: "2026-W22",
     });
-    expect(r.streakFreezes).toBe(FREEZES_PER_WEEK);
+    expect(u.streakFreezes).toBe(FREEZES_PER_WEEK);
+  });
+
+  it("same-day replay preserves streak", () => {
+    const u = computeStreakUpdate({
+      lastPlayedDate: "2026-06-17",
+      currentStreak: 7,
+      playDate: "2026-06-17",
+      streakFreezes: 1,
+      freezeWeekKey: isoWeekKey("2026-06-17"),
+    });
+    expect(u.streak).toBe(7);
+  });
+
+  it("dayGap counts UTC calendar days", () => {
+    expect(dayGap("2026-06-01", "2026-06-03")).toBe(2);
+    expect(dayGap("2026-06-01", "2026-06-01")).toBe(0);
+  });
+
+  it("isoWeekKey is stable for mid-year dates", () => {
+    expect(isoWeekKey("2026-06-17")).toMatch(/^2026-W\d{2}$/);
   });
 });
