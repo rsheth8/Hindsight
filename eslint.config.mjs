@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local clones / generated output — not part of the shipped app
+    ".claude/**",
+    "coverage/**",
   ]),
 ]);
 

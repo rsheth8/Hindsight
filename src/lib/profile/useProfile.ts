@@ -1,15 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { emptyProfile, loadProfile, subscribe, type Profile } from "./store";
 
-/** Reactive profile hook. Starts from the empty profile so the first client
- *  render matches the server (no hydration mismatch), then loads the stored
- *  profile after mount and on every change. */
+/** Reactive profile hook. Server snapshot is empty so SSR matches hydration;
+ *  client reads localStorage and re-renders on every store change. */
 export function useProfile(): Profile {
-  const [profile, setProfile] = useState<Profile>(emptyProfile);
-  useEffect(() => {
-    setProfile(loadProfile());
-    return subscribe(() => setProfile(loadProfile()));
-  }, []);
-  return profile;
+  return useSyncExternalStore(subscribe, loadProfile, emptyProfile);
 }

@@ -28,8 +28,9 @@ export function YouScreen() {
         .then((s) => setReminderBlocked(s === "denied"))
         .catch(() => setReminderBlocked(true));
     } else {
-      cancelDailyReminder().catch(() => {});
-      setReminderBlocked(false);
+      cancelDailyReminder()
+        .catch(() => {})
+        .finally(() => setReminderBlocked(false));
     }
   }, [p.reminderEnabled, p.reminderHour, p.reminderMinute]);
 

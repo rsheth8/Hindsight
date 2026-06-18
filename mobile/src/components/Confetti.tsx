@@ -1,22 +1,34 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Animated, Dimensions, Easing, StyleSheet, View } from "react-native";
 
 const COLORS = ["#5ef2b0", "#ffb454", "#7aa2ff", "#ff6b81", "#eef2f7"];
 const { width: SW, height: SH } = Dimensions.get("window");
 
+type Bit = {
+  left: number;
+  delay: number;
+  dur: number;
+  color: string;
+  size: number;
+  anim: Animated.Value;
+  drift: number;
+};
+
+function createBits(): Bit[] {
+  return Array.from({ length: 40 }, (_, i) => ({
+    left: Math.random() * SW,
+    delay: Math.random() * 300,
+    dur: 1600 + Math.random() * 1300,
+    color: COLORS[i % COLORS.length],
+    size: 6 + Math.random() * 7,
+    anim: new Animated.Value(0),
+    drift: (Math.random() - 0.5) * 80,
+  }));
+}
+
 /** Cheap confetti burst, gated to earned wins only — never for luck. */
 export function Confetti() {
-  const bits = useRef(
-    Array.from({ length: 40 }, (_, i) => ({
-      left: Math.random() * SW,
-      delay: Math.random() * 300,
-      dur: 1600 + Math.random() * 1300,
-      color: COLORS[i % COLORS.length],
-      size: 6 + Math.random() * 7,
-      anim: new Animated.Value(0),
-      drift: (Math.random() - 0.5) * 80,
-    })),
-  ).current;
+  const [bits] = useState(createBits);
 
   useEffect(() => {
     Animated.stagger(

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -54,7 +54,7 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
   const [depth, setDepth] = useState<Depth>("learn");
 
   const [result, setResult] = useState<GradeResult | null>(null);
-  const ratingFrom = useRef(profile.rating);
+  const [ratingFrom, setRatingFrom] = useState(profile.rating);
 
   const chips = useMemo(() => (problem ? chipsForProblem(problem) : []), [problem]);
   const reasoning = useMemo(() => buildReasoning(selectedChips, customReasoning), [selectedChips, customReasoning]);
@@ -87,7 +87,7 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
 
   async function submit() {
     if (!choice || !problem) return;
-    ratingFrom.current = profile.rating;
+    setRatingFrom(profile.rating);
     setPhase("grading");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -203,7 +203,7 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
           <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: verdictToneColor(v.tone), paddingHorizontal: 14, paddingVertical: 5 }}>
             <Text style={{ fontSize: 13, fontWeight: "800", color: verdictToneColor(v.tone) }}>{v.badge}</Text>
           </View>
-          <CountUp from={ratingFrom.current} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"], marginTop: 8 }} />
+          <CountUp from={ratingFrom} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"], marginTop: 8 }} />
           <Text style={{ marginTop: 2, fontSize: 14, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }}>
             {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta} rating
           </Text>

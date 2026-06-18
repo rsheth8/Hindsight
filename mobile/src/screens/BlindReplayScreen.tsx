@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -52,7 +52,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
   const [customReasoning, setCustomReasoning] = useState("");
   const [depth] = useState<Depth>("learn");
   const [result, setResult] = useState<GradeResult | null>(null);
-  const ratingFrom = useRef(profile.rating);
+  const [ratingFrom, setRatingFrom] = useState(profile.rating);
 
   const reasoning = useMemo(() => buildReasoning(selectedChips, customReasoning), [selectedChips, customReasoning]);
   const chips = useMemo(() => (problem ? chipsForProblem(problem) : []), [problem]);
@@ -71,9 +71,26 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
     } finally {
       setLoading(false);
     }
-  }, [seed, focus, onExit]);
+  }, [seed, focus]);
 
-  React.useEffect(() => { load(0); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchBlindReplay(seed, focus, 0);
+        if (cancelled) return;
+        setProblem(data.problem);
+        setVisibleDays(data.visibleDays);
+        setCanAdvance(data.canAdvance);
+        setStepDays(data.stepDays);
+      } catch {
+        if (!cancelled) setError("Couldn't load blind replay. Check your connection.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [seed, focus]);
 
   async function advance() {
     if (!canAdvance) return;
@@ -83,7 +100,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
 
   async function submit() {
     if (!choice || !problem) return;
-    ratingFrom.current = profile.rating;
+    setRatingFrom(profile.rating);
     setPhase("grading");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -164,7 +181,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
           <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: verdictToneColor(v.tone), paddingHorizontal: 14, paddingVertical: 5 }}>
             <Text style={{ fontSize: 13, fontWeight: "800", color: verdictToneColor(v.tone) }}>{v.badge}</Text>
           </View>
-          <CountUp from={ratingFrom.current} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: result.ratingDelta >= 0 ? C.accent : C.bad, marginTop: 8, fontVariant: ["tabular-nums"] }} />
+          <CountUp from={ratingFrom} to={result.newRating} style={{ fontSize: 56, fontWeight: "800", color: result.ratingDelta >= 0 ? C.accent : C.bad, marginTop: 8, fontVariant: ["tabular-nums"] }} />
           <Text style={{ marginTop: 2, fontSize: 14, color: result.ratingDelta >= 0 ? C.accent : C.bad, fontVariant: ["tabular-nums"] }}>
             {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta} rating
           </Text>

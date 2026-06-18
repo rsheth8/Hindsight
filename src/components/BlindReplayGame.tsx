@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SparkChart } from "./SparkChart";
 import { CountUp } from "./CountUp";
 import { Confetti } from "./Confetti";
@@ -43,7 +43,7 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
   const [showCustomReasoning, setShowCustomReasoning] = useState(false);
   const [depth, setDepth] = useState<Depth>("learn");
   const [result, setResult] = useState<GradeResult | null>(null);
-  const ratingFrom = useRef(profile.rating);
+  const [ratingFrom, setRatingFrom] = useState(profile.rating);
 
   const reasoning = useMemo(() => buildReasoning(selectedChips, customReasoning), [selectedChips, customReasoning]);
   const chips = useMemo(() => (problem ? chipsForProblem(problem) : []), [problem]);
@@ -69,7 +69,30 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
     }
   }, [seed, focus]);
 
-  useEffect(() => { load(0); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = new URLSearchParams({ seed, focus, visible: "42" });
+        const res = await fetch(`/api/blind-replay?${q}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || data.error) throw new Error(data.error || `Load failed (${res.status})`);
+        setProblem(data.problem);
+        setVisibleDays(data.visibleDays);
+        setCanAdvance(data.canAdvance);
+        setStepDays(data.stepDays);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Couldn't load blind replay.");
+          setProblem(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [seed, focus]);
 
   if (loading && !problem) {
     return <div className="animate-pulse pt-10"><div className="h-56 rounded-2xl bg-[var(--card)]" /></div>;
@@ -103,7 +126,7 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
         <div className="mt-2 text-center">
           <div className="mx-auto inline-block rounded-full border-[1.5px] px-3.5 py-1 text-[13px] font-extrabold" style={{ borderColor: toneColor, color: toneColor }}>{v.badge}</div>
           <div className="hero-num tnum mt-2 text-6xl" style={{ color: result.ratingDelta >= 0 ? "var(--accent)" : "var(--bad)" }}>
-            <CountUp from={ratingFrom.current} to={result.newRating} />
+            <CountUp from={ratingFrom} to={result.newRating} />
           </div>
           <div className="tnum text-sm" style={{ color: result.ratingDelta >= 0 ? "var(--accent)" : "var(--bad)" }}>
             {result.ratingDelta >= 0 ? "+" : ""}{result.ratingDelta} rating
@@ -156,9 +179,9 @@ export function BlindReplayGame({ onExit }: { onExit: () => void }) {
 
   async function submit() {
     if (!choice || !problem) return;
+    setRatingFrom(profile.rating);
     setPhase("grading");
     setError(null);
-    ratingFrom.current = profile.rating;
     vibrate([18, 40, 18]);
     try {
       const res = await fetch("/api/grade", {

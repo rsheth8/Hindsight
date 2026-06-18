@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore, useState } from "react";
 
 const SLIDES = [
   {
@@ -20,6 +20,23 @@ const SLIDES = [
 ] as const;
 
 const ONBOARD_KEY = "hindsight.onboarded.v1";
+const ONBOARD_EVENT = "hindsight:onboarded";
+
+function subscribeOnboarded(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const handler = () => onStoreChange();
+  window.addEventListener("storage", handler);
+  window.addEventListener(ONBOARD_EVENT, handler);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener(ONBOARD_EVENT, handler);
+  };
+}
+
+function readOnboarded(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(ONBOARD_KEY) === "1";
+}
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
@@ -51,20 +68,13 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 }
 
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const [onboarded, setOnboarded] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setOnboarded(localStorage.getItem(ONBOARD_KEY) === "1");
-  }, []);
+  const onboarded = useSyncExternalStore(subscribeOnboarded, readOnboarded, () => false);
 
   function finish() {
     localStorage.setItem(ONBOARD_KEY, "1");
-    setOnboarded(true);
+    window.dispatchEvent(new Event(ONBOARD_EVENT));
   }
 
-  if (onboarded === null) {
-    return <div className="animate-pulse pt-10"><div className="h-12 rounded-xl bg-[var(--card)]" /></div>;
-  }
   if (!onboarded) return <OnboardingScreen onDone={finish} />;
   return <>{children}</>;
 }

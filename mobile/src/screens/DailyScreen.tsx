@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, Text, TextInput, View, useWindowDimensions } from "react-native";
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
@@ -40,7 +40,7 @@ export function DailyScreen() {
   const [depth, setDepth] = useState<Depth>("learn");
 
   const [result, setResult] = useState<GradeResult | null>(null);
-  const ratingFrom = useRef(profile.rating);
+  const [ratingFrom, setRatingFrom] = useState(profile.rating);
 
   const today = todayKey();
   const playedToday = useMemo(() => hasPlayed(profile, today), [profile, today]);
@@ -57,11 +57,17 @@ export function DailyScreen() {
       .catch(() => setError("We couldn't load today's problem. Check your connection and try again."));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDaily()
+      .then((p) => { if (!cancelled) { setProblem(p); setPhase("commit"); } })
+      .catch(() => { if (!cancelled) setError("We couldn't load today's problem. Check your connection and try again."); });
+    return () => { cancelled = true; };
+  }, []);
 
   async function submit() {
     if (!choice || !problem) return;
-    ratingFrom.current = profile.rating;
+    setRatingFrom(profile.rating);
     setPhase("grading");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -121,7 +127,7 @@ export function DailyScreen() {
   }
 
   if (phase === "reveal" && result) {
-    return <Reveal problem={problem} result={result} ratingFrom={ratingFrom.current} streak={profile.streak} choice={choice!} depth={depth} setDepth={setDepth} chartW={chartW} />;
+    return <Reveal problem={problem} result={result} ratingFrom={ratingFrom} streak={profile.streak} choice={choice!} depth={depth} setDepth={setDepth} chartW={chartW} />;
   }
 
   // ── commit screen ──
