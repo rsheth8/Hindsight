@@ -12,6 +12,15 @@ function risingBars(n: number): Bar[] {
   }));
 }
 
+// Net ~flat but with large day-to-day swings → high realized volatility, no clear trend.
+function volatileBars(n: number): Bar[] {
+  let price = 100;
+  return Array.from({ length: n }, (_, i) => {
+    price *= 1 + (i % 2 === 0 ? 0.08 : -0.075);
+    return { date: `2024-01-${String(i + 1).padStart(2, "0")}`, close: +price.toFixed(2) };
+  });
+}
+
 describe("metrics", () => {
   it("flat prices → ~0 vol and 0% return", () => {
     const m = computeMetrics(flatBars(60));
@@ -25,21 +34,21 @@ describe("metrics", () => {
     expect(ret).toBeGreaterThan(0);
   });
 
-  it("estimateDifficulty peaks near ±10% boundaries", () => {
-    const nearBoundary = estimateDifficulty(9, 30);
-    const farAway = estimateDifficulty(25, 30);
-    expect(nearBoundary).toBeGreaterThan(farAway);
+  it("difficulty is higher for volatile/ambiguous setups than clear low-vol trends", () => {
+    const calm = estimateDifficulty(risingBars(80)); // steady trend, low vol → easier
+    const choppy = estimateDifficulty(volatileBars(80)); // high vol, no trend → harder
+    expect(choppy).toBeGreaterThan(calm);
+  });
+
+  it("difficulty uses only visible bars and stays in [0.15, 0.95]", () => {
+    for (const bars of [flatBars(60), risingBars(80), volatileBars(80)]) {
+      const d = estimateDifficulty(bars);
+      expect(d).toBeGreaterThanOrEqual(0.15);
+      expect(d).toBeLessThanOrEqual(0.95);
+    }
   });
 
   it("computeMetrics on short series does not throw", () => {
     expect(() => computeMetrics(flatBars(2))).not.toThrow();
-  });
-
-  it("difficulty stays in [0.15, 0.95]", () => {
-    for (const fwd of [-20, 0, 10, 30]) {
-      const d = estimateDifficulty(fwd, 40);
-      expect(d).toBeGreaterThanOrEqual(0.15);
-      expect(d).toBeLessThanOrEqual(0.95);
-    }
   });
 });

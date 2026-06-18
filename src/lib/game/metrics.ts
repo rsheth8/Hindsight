@@ -76,16 +76,24 @@ export function computeMetrics(history: Bar[]): SetupMetric[] {
   ];
 }
 
-/** Difficulty 0–1: outcomes that land near the ±10% decision boundaries, or in
- *  high-vol names, are genuinely harder to call. */
-export function estimateDifficulty(forwardReturnPct: number, vol: number): number {
-  const distToBoundary = Math.min(
-    Math.abs(forwardReturnPct - 10),
-    Math.abs(forwardReturnPct + 10),
-    Math.abs(forwardReturnPct),
-  );
-  // Close to a boundary → harder. 0% away → ~0.9, 15%+ away → ~0.3.
-  const boundary = Math.max(0, 1 - distToBoundary / 18);
-  const volComponent = Math.min(1, vol / 60);
-  return Math.max(0.15, Math.min(0.95, 0.3 + 0.5 * boundary + 0.2 * volComponent));
+/**
+ * Difficulty 0–1 from VISIBLE setup features only — never the forward outcome.
+ * (Keying off how close the realized return landed to a boundary would leak the
+ * result, since difficulty is shown before the player commits.) A setup is harder
+ * when realized volatility is high (wide outcome distribution) and when the
+ * directional signal is weak — flat and sitting on the 50-day average.
+ */
+export function estimateDifficulty(history: Bar[]): number {
+  if (history.length < 3) return 0.5;
+  const vol = annualizedVol(history);
+  const ret = pctReturn(history[0].close, history[history.length - 1].close);
+  const ma50 = sma(history, 50);
+  const vsMa = (history[history.length - 1].close / ma50 - 1) * 100;
+
+  const volComponent = Math.min(1, vol / 55); // ~55%+ annualized vol = max uncertainty
+  // How clear the directional read is: a big trailing move or a price far from its
+  // trend line is an easier call than a flat chart hugging the 50-day.
+  const trendClarity = Math.min(1, Math.max(Math.abs(ret) / 30, Math.abs(vsMa) / 12));
+  const difficulty = 0.25 + 0.55 * volComponent + 0.2 * (1 - trendClarity);
+  return Math.max(0.15, Math.min(0.95, difficulty));
 }

@@ -65,7 +65,6 @@ function makeEntry(opts: {
   const forwardPct = (resolveBar.close / decisionBar.close - 1) * 100;
   const base = history[0].close;
   const metrics = computeMetrics(history);
-  const vol = parseFloat(metrics[1].value);
 
   return {
     type: "read-the-setup",
@@ -74,7 +73,7 @@ function makeEntry(opts: {
     prompt: PROMPT,
     choices: CHOICES,
     horizonLabel: HORIZON,
-    difficulty: estimateDifficulty(forwardPct, vol),
+    difficulty: estimateDifficulty(history),
     answer: classify(forwardPct),
     reveal: {
       ticker: opts.ticker,

@@ -111,8 +111,7 @@ async function buildLive(dateKey: string): Promise<SolvedProblem> {
   const base = history[0].close;
 
   const metrics = computeMetrics(history);
-  const vol = parseFloat(metrics[1].value);
-  const difficulty = estimateDifficulty(forwardPct, vol);
+  const difficulty = estimateDifficulty(history);
   // Illustrative crowd leans on the *visible* trailing trend, not the hidden answer.
   const trailingPct = (decisionBar.close / history[0].close - 1) * 100;
   const crowd = syntheticCrowd(r, classify(trailingPct));
