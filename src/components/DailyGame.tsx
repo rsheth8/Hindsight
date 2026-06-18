@@ -446,6 +446,9 @@ function Reveal({
           ? `Crowd split from ${result.crowdSampleSize} real answers today.`
           : "*Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem."}
       </p>
+      <p className="mt-2 text-center text-[10px] leading-relaxed text-[var(--muted-2)]">
+        Anonymized {problem.live ? "real large-cap history (total return)" : "synthetic setup"} · decision dates are balanced across up / flat / down outcomes, so the answer isn&apos;t just &ldquo;stocks go up.&rdquo;
+      </p>
     </div>
   );
 }

@@ -17,7 +17,8 @@ function parsePct(value: string): number {
 export function conceptsForProblem(problem: DailyProblem): ConceptId[] {
   const tags = new Set<ConceptId>();
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
-  const ret6m = parsePct(byLabel["6-month return"] ?? "0");
+  // Return label carries the visible window length — match by substring (see metrics.ts).
+  const ret6m = parsePct(problem.metrics.find((m) => m.label.includes("return"))?.value ?? "0");
   const vol = parsePct(byLabel["Annualized volatility"] ?? "0");
   const dd = parsePct(byLabel["Max drawdown (window)"] ?? "0");
   const vsMa = parsePct(byLabel["Vs 50-day average"] ?? "0");

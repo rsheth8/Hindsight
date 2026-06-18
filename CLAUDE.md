@@ -19,6 +19,14 @@ architecture, and `docs/handoff.md` for the full product vision.
 - Third-party keys are **server-side only** (`FMP_API_KEY`, `ANTHROPIC_API_KEY`).
 - Grade the **decision, not the outcome** (outcome 0.15 / calibration 0.45 / reasoning
   0.40). Keep the luck filter intact — `src/lib/game/rating.ts`.
+- **Calibration math is single-source** in `src/lib/game/calibration.ts`: confidence floor
+  is `1/3` (pure guess among 3), the Brier reference is `2/9` (= p(1−p) base-rate variance),
+  and everything uses `calibrationSkill` (readiness/mastery) or `calibrationCredit` (rating
+  axis) — never re-derive `1−brier` / `(0.25−brier)/0.25` inline.
+- **Answer distribution is balanced** — the live universe is large-cap *survivors* (upward
+  base-rate skew), so `daily.ts` balances the decision date across A/B/C. Don't "fix" this
+  by sampling dates uniformly, or "always pick up" beats chance. Live outcomes use **total
+  return** (`adjClose`); never claim the universe is survivorship-free.
 - Educational only — **never** generate buy/sell advice in copy or AI prompts.
 - Mobile-first, dark, number-as-hero. Effects stay compositor-cheap (no heavy WebGL).
 - Crowd split is **real** once ≥3 server submissions exist for a problem; otherwise

@@ -17,7 +17,9 @@ function parsePct(value: string): number {
 /** Derive tappable chips from metrics + the anonymized series. */
 export function chipsForProblem(problem: DailyProblem): ReasoningChip[] {
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
-  const ret6m = parsePct(byLabel["6-month return"] ?? "0");
+  // The return label carries the visible window length ("6-month return", "2-month
+  // return" in blind replay), so match it by substring rather than an exact key.
+  const ret6m = parsePct(problem.metrics.find((m) => m.label.includes("return"))?.value ?? "0");
   const vol = parsePct(byLabel["Annualized volatility"] ?? "0");
   const dd = parsePct(byLabel["Max drawdown (window)"] ?? "0");
   const fromHigh = parsePct(byLabel["From window high"] ?? "0");

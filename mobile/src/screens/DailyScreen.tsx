@@ -401,6 +401,9 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
           ? `Crowd split from ${result.crowdSampleSize} real answers today.`
           : "*Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem."}
       </Text>
+      <Text style={{ marginTop: 8, textAlign: "center", fontSize: 10, lineHeight: 15, color: C.muted2 }}>
+        Anonymized large-cap history (total return) — decision dates are balanced across up / flat / down outcomes, so the answer isn&apos;t just &ldquo;stocks go up.&rdquo;
+      </Text>
     </ScrollView>
   );
 }

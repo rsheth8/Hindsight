@@ -87,15 +87,22 @@ function makeEntry(opts: {
   };
 }
 
+// Forward legs are tuned to ~balance the outcome class (≈3 A / 4 B / 3 C): B
+// entries use a small drift + low forward vol so they reliably stay within ±10%,
+// while A/C use a clear drift. Synthetic price series (no dividends modeled) — only
+// used when no FMP key is set, and always flagged `live: false` in the UI.
 export const FALLBACK_BANK: BankEntry[] = [
-  makeEntry({ ticker: "DEMO1", company: "Northwind Industrials", seed: 101, histDrift: 0.004, histVol: 0.012, fwdDrift: 0.0035, fwdVol: 0.013 }),
-  makeEntry({ ticker: "DEMO2", company: "Cascade Software", seed: 202, histDrift: 0.006, histVol: 0.02, fwdDrift: -0.004, fwdVol: 0.024 }),
-  makeEntry({ ticker: "DEMO3", company: "Harbor Retail", seed: 303, histDrift: -0.003, histVol: 0.015, fwdDrift: 0.001, fwdVol: 0.014 }),
-  makeEntry({ ticker: "DEMO4", company: "Meridian Energy", seed: 404, histDrift: 0.002, histVol: 0.018, fwdDrift: 0.005, fwdVol: 0.02 }),
-  makeEntry({ ticker: "DEMO5", company: "Vertex Biotech", seed: 505, histDrift: 0.008, histVol: 0.03, fwdDrift: -0.006, fwdVol: 0.035 }),
-  makeEntry({ ticker: "DEMO6", company: "Sterling Financial", seed: 606, histDrift: 0.0015, histVol: 0.011, fwdDrift: 0.0008, fwdVol: 0.012 }),
-  makeEntry({ ticker: "DEMO7", company: "Atlas Semiconductors", seed: 707, histDrift: 0.009, histVol: 0.028, fwdDrift: 0.007, fwdVol: 0.03 }),
-  makeEntry({ ticker: "DEMO8", company: "Volta Pharmaceuticals", seed: 808, histDrift: 0.01, histVol: 0.038, fwdDrift: -0.003, fwdVol: 0.042 }),
-  makeEntry({ ticker: "DEMO9", company: "Ironclad Mining", seed: 909, histDrift: -0.006, histVol: 0.034, fwdDrift: 0.002, fwdVol: 0.036 }),
-  makeEntry({ ticker: "DEMO10", company: "Summit Cloud", seed: 1010, histDrift: 0.008, histVol: 0.022, fwdDrift: -0.009, fwdVol: 0.028 }),
+  // A — Gained more than 10%
+  makeEntry({ ticker: "DEMO1", company: "Northwind Industrials", seed: 101, histDrift: 0.004, histVol: 0.012, fwdDrift: 0.0035, fwdVol: 0.010 }),
+  makeEntry({ ticker: "DEMO4", company: "Meridian Energy", seed: 404, histDrift: 0.002, histVol: 0.018, fwdDrift: 0.004, fwdVol: 0.012 }),
+  makeEntry({ ticker: "DEMO7", company: "Atlas Semiconductors", seed: 707, histDrift: 0.009, histVol: 0.028, fwdDrift: 0.005, fwdVol: 0.014 }),
+  // B — Stayed within ±10% (small drift, low forward vol)
+  makeEntry({ ticker: "DEMO3", company: "Harbor Retail", seed: 303, histDrift: -0.003, histVol: 0.015, fwdDrift: 0.0008, fwdVol: 0.007 }),
+  makeEntry({ ticker: "DEMO6", company: "Sterling Financial", seed: 606, histDrift: 0.0015, histVol: 0.011, fwdDrift: 0.0003, fwdVol: 0.006 }),
+  makeEntry({ ticker: "DEMO9", company: "Ironclad Mining", seed: 909, histDrift: -0.006, histVol: 0.034, fwdDrift: -0.0006, fwdVol: 0.008 }),
+  makeEntry({ ticker: "DEMO10", company: "Summit Cloud", seed: 1010, histDrift: 0.008, histVol: 0.022, fwdDrift: 0.0010, fwdVol: 0.008 }),
+  // C — Fell more than 10%
+  makeEntry({ ticker: "DEMO2", company: "Cascade Software", seed: 202, histDrift: 0.006, histVol: 0.02, fwdDrift: -0.004, fwdVol: 0.018 }),
+  makeEntry({ ticker: "DEMO5", company: "Vertex Biotech", seed: 505, histDrift: 0.008, histVol: 0.03, fwdDrift: -0.005, fwdVol: 0.022 }),
+  makeEntry({ ticker: "DEMO8", company: "Volta Pharmaceuticals", seed: 808, histDrift: 0.01, histVol: 0.038, fwdDrift: -0.0035, fwdVol: 0.020 }),
 ];
