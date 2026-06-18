@@ -76,7 +76,7 @@ export interface SolvedProblem extends DailyProblem {
 export interface Submission {
   problemId: string;
   choice: ChoiceId;
-  /** 0.5–1.0 — how sure the player is in the chosen answer */
+  /** 1/3–1.0 — how sure the player is in the chosen answer (1/3 = pure guess among 3) */
   confidence: number;
   reasoning: string;
   /** the player's rating before this problem, for the Elo update */

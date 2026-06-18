@@ -3,6 +3,7 @@
  */
 import type { JournalEntry } from "../profile";
 import type { DailyProblem } from "./types";
+import { calibrationSkill } from "./calibration";
 
 export type { ConceptId, ConceptDef, ConceptMastery, MasteryLevel } from "./concept-types";
 export { CONCEPTS } from "./concept-types";
@@ -45,7 +46,7 @@ function masteryLevel(score: number, calls: number): MasteryLevel {
   return "building";
 }
 
-const calibScore = (brier: number) => Math.round(Math.max(0, Math.min(100, ((0.25 - brier) / 0.25) * 100)));
+const calibScore = (brier: number) => Math.round(calibrationSkill(brier) * 100);
 
 export function conceptMastery(history: JournalEntry[]): ConceptMastery[] {
   const buckets = new Map<ConceptId, JournalEntry[]>();

@@ -60,14 +60,25 @@ describe("POST /api/grade", () => {
     expect(body.error).toMatch(/reasoning/i);
   });
 
-  it("clamps confidence to [0.5, 1]", async () => {
-    const res = await POST(jsonRequest("http://localhost/api/grade", {
+  it("clamps confidence to [1/3, 1]", async () => {
+    // 0.1 is below the pure-guess floor → treated as 1/3
+    const lo = await POST(jsonRequest("http://localhost/api/grade", {
       method: "POST",
       body: { ...validBody, confidence: 0.1 },
     }));
-    expect(res.status).toBe(200);
-    const body = await readJson<{ brier: number }>(res);
-    expect(body.brier).toBeLessThanOrEqual(0.25);
+    expect(lo.status).toBe(200);
+    const loBody = await readJson<{ brier: number; correct: boolean }>(lo);
+    const expectedLo = loBody.correct ? (1 - 1 / 3) ** 2 : (1 / 3) ** 2;
+    expect(loBody.brier).toBeCloseTo(expectedLo, 3);
+
+    // 1.5 is above the ceiling → treated as 1.0
+    const hi = await POST(jsonRequest("http://localhost/api/grade", {
+      method: "POST",
+      body: { ...validBody, confidence: 1.5 },
+    }));
+    expect(hi.status).toBe(200);
+    const hiBody = await readJson<{ brier: number; correct: boolean }>(hi);
+    expect(hiBody.brier).toBeCloseTo(hiBody.correct ? 0 : 1, 3);
   });
 
   it("saves submission for daily with deviceId", async () => {

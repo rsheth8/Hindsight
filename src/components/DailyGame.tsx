@@ -7,6 +7,7 @@ import { ShareCard } from "./ShareCard";
 import { useProfile } from "@/lib/profile/useProfile";
 import { hasPlayed, recordResult, type JournalEntry } from "@/lib/profile/store";
 import { isProvisional } from "@/lib/game/rating";
+import { calibrationCredit } from "@/lib/game/calibration";
 import { todayKey } from "@/lib/game/seed";
 import { buildReasoning, chipsForProblem, hasReasoning } from "@/lib/game/reasoning-chips";
 import { conceptsForProblem } from "@/lib/game/concepts";
@@ -194,14 +195,14 @@ export function DailyGame() {
         <input
           className="dial mt-3 w-full"
           type="range"
-          min={50}
+          min={33}
           max={99}
           value={confidence}
           onChange={(e) => setConfidence(Number(e.target.value))}
           onInput={() => vibrate(2)}
         />
         <div className="mt-1 flex justify-between text-[10px] text-[var(--muted-2)]">
-          <span>50% · coin flip</span>
+          <span>33% · pure guess</span>
           <span>99% · certain</span>
         </div>
       </div>
@@ -330,7 +331,7 @@ function Reveal({
 }) {
   const r = result.reveal;
   const up = r.forwardReturnPct >= 0;
-  const calib = 1 - result.brier;
+  const calib = calibrationCredit(result.brier);
   const v = verdict(result);
   const skill = transferableSkill(problem, result);
   const toneColor = verdictToneCss(v.tone);
@@ -359,7 +360,7 @@ function Reveal({
       {/* three-axis scorecard */}
       <div className="mt-5 grid grid-cols-3 gap-2">
         <Score label="Outcome" emoji={result.correct ? "🟩" : "🟥"} sub={result.correct ? "Correct" : "Missed"} weight="15%" />
-        <Score label="Calibration" emoji={calib > 0.8 ? "🟩" : calib > 0.55 ? "🟨" : "🟥"} sub={`Brier ${result.brier.toFixed(2)}`} weight="45%" />
+        <Score label="Calibration" emoji={calib > 0.7 ? "🟩" : calib > 0.45 ? "🟨" : "🟥"} sub={`Brier ${result.brier.toFixed(2)}`} weight="45%" />
         <Score label="Reasoning" emoji={result.reasoning >= 0.66 ? "🟩" : result.reasoning >= 0.4 ? "🟨" : "🟥"} sub={`${Math.round(result.reasoning * 100)}/100`} weight="40%" />
       </div>
 
