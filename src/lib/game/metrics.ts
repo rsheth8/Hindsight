@@ -1,8 +1,15 @@
 /**
  * Point-in-time setup metrics derived purely from the price history the player
- * can see — no look-ahead, no survivorship problem. These are the honest clues.
+ * can see — strictly no look-ahead (nothing past the decision date feeds these).
+ *
+ * NOTE: these clues do NOT remove survivorship bias. The live universe is today's
+ * liquid large-caps (see universe.ts), so every name survived to the present and
+ * raw base rates skew upward. We counter that at *selection* time by balancing the
+ * forward-outcome class across A/B/C (see daily.ts), not here.
  */
 import type { SetupMetric } from "./types";
+
+const TRADING_DAYS_MONTH = 21;
 
 export interface Bar {
   date: string;
@@ -57,9 +64,11 @@ export function computeMetrics(history: Bar[]): SetupMetric[] {
   const aboveMa = ((last / ma50 - 1) * 100);
 
   const fmt = (x: number, sign = true) => `${sign && x > 0 ? "+" : ""}${x.toFixed(1)}%`;
+  // Label the return by how much history is actually visible (blind replay truncates it).
+  const months = Math.max(1, Math.round((history.length - 1) / TRADING_DAYS_MONTH));
 
   return [
-    { label: "6-month return", value: fmt(ret6m), hint: "Price change over the window you can see." },
+    { label: `${months}-month return`, value: fmt(ret6m), hint: "Total return over the window you can see." },
     { label: "Annualized volatility", value: `${vol.toFixed(0)}%`, hint: "How jumpy the stock has been — higher = wider outcomes." },
     { label: "Max drawdown (window)", value: fmt(dd), hint: "Worst peak-to-trough drop inside the window." },
     { label: "From window high", value: fmt(fromHigh), hint: "Distance below the highest close shown." },
@@ -67,16 +76,24 @@ export function computeMetrics(history: Bar[]): SetupMetric[] {
   ];
 }
 
-/** Difficulty 0–1: outcomes that land near the ±10% decision boundaries, or in
- *  high-vol names, are genuinely harder to call. */
-export function estimateDifficulty(forwardReturnPct: number, vol: number): number {
-  const distToBoundary = Math.min(
-    Math.abs(forwardReturnPct - 10),
-    Math.abs(forwardReturnPct + 10),
-    Math.abs(forwardReturnPct),
-  );
-  // Close to a boundary → harder. 0% away → ~0.9, 15%+ away → ~0.3.
-  const boundary = Math.max(0, 1 - distToBoundary / 18);
-  const volComponent = Math.min(1, vol / 60);
-  return Math.max(0.15, Math.min(0.95, 0.3 + 0.5 * boundary + 0.2 * volComponent));
+/**
+ * Difficulty 0–1 from VISIBLE setup features only — never the forward outcome.
+ * (Keying off how close the realized return landed to a boundary would leak the
+ * result, since difficulty is shown before the player commits.) A setup is harder
+ * when realized volatility is high (wide outcome distribution) and when the
+ * directional signal is weak — flat and sitting on the 50-day average.
+ */
+export function estimateDifficulty(history: Bar[]): number {
+  if (history.length < 3) return 0.5;
+  const vol = annualizedVol(history);
+  const ret = pctReturn(history[0].close, history[history.length - 1].close);
+  const ma50 = sma(history, 50);
+  const vsMa = (history[history.length - 1].close / ma50 - 1) * 100;
+
+  const volComponent = Math.min(1, vol / 55); // ~55%+ annualized vol = max uncertainty
+  // How clear the directional read is: a big trailing move or a price far from its
+  // trend line is an easier call than a flat chart hugging the 50-day.
+  const trendClarity = Math.min(1, Math.max(Math.abs(ret) / 30, Math.abs(vsMa) / 12));
+  const difficulty = 0.25 + 0.55 * volComponent + 0.2 * (1 - trendClarity);
+  return Math.max(0.15, Math.min(0.95, difficulty));
 }

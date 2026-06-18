@@ -3,6 +3,7 @@
  */
 import type { JournalEntry } from "../profile";
 import type { DailyProblem } from "./types";
+import { calibrationSkill } from "./calibration";
 
 export type { ConceptId, ConceptDef, ConceptMastery, MasteryLevel } from "./concept-types";
 export { CONCEPTS } from "./concept-types";
@@ -16,7 +17,8 @@ function parsePct(value: string): number {
 export function conceptsForProblem(problem: DailyProblem): ConceptId[] {
   const tags = new Set<ConceptId>();
   const byLabel = Object.fromEntries(problem.metrics.map((m) => [m.label, m.value]));
-  const ret6m = parsePct(byLabel["6-month return"] ?? "0");
+  // Return label carries the visible window length — match by substring (see metrics.ts).
+  const ret6m = parsePct(problem.metrics.find((m) => m.label.includes("return"))?.value ?? "0");
   const vol = parsePct(byLabel["Annualized volatility"] ?? "0");
   const dd = parsePct(byLabel["Max drawdown (window)"] ?? "0");
   const vsMa = parsePct(byLabel["Vs 50-day average"] ?? "0");
@@ -45,7 +47,7 @@ function masteryLevel(score: number, calls: number): MasteryLevel {
   return "building";
 }
 
-const calibScore = (brier: number) => Math.round(Math.max(0, Math.min(100, ((0.25 - brier) / 0.25) * 100)));
+const calibScore = (brier: number) => Math.round(calibrationSkill(brier) * 100);
 
 export function conceptMastery(history: JournalEntry[]): ConceptMastery[] {
   const buckets = new Map<ConceptId, JournalEntry[]>();

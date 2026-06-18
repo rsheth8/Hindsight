@@ -176,10 +176,10 @@ export function DailyScreen() {
           <Text style={{ fontSize: 14, color: C.muted }}>How sure are you?</Text>
           <Text style={{ fontSize: 24, fontWeight: "800", color: confColor(confidence), fontVariant: ["tabular-nums"] }}>{confidence}%</Text>
         </View>
-        <Slider style={{ marginTop: 10 }} minimumValue={50} maximumValue={99} step={1} value={confidence}
+        <Slider style={{ marginTop: 10 }} minimumValue={33} maximumValue={99} step={1} value={confidence}
           onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} maximumTrackTintColor={C.card2} thumbTintColor={C.fg} />
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-          <Text style={{ fontSize: 10, color: C.muted2 }}>50% · coin flip</Text>
+          <Text style={{ fontSize: 10, color: C.muted2 }}>33% · pure guess</Text>
           <Text style={{ fontSize: 10, color: C.muted2 }}>99% · certain</Text>
         </View>
       </View>
@@ -400,6 +400,9 @@ function Reveal({ problem, result, ratingFrom, streak, choice, depth, setDepth, 
         {result.crowdReal
           ? `Crowd split from ${result.crowdSampleSize} real answers today.`
           : "*Crowd split is illustrative until enough players have answered. Come back tomorrow for a fresh problem."}
+      </Text>
+      <Text style={{ marginTop: 8, textAlign: "center", fontSize: 10, lineHeight: 15, color: C.muted2 }}>
+        Anonymized large-cap history (total return) — decision dates are balanced across up / flat / down outcomes, so the answer isn&apos;t just &ldquo;stocks go up.&rdquo;
       </Text>
     </ScrollView>
   );

@@ -291,7 +291,7 @@ export function PracticeScreen({ onBlindReplay }: { onBlindReplay?: () => void }
           <Text style={{ fontSize: 14, color: C.muted }}>How sure are you?</Text>
           <Text style={{ fontSize: 24, fontWeight: "800", color: C.accent, fontVariant: ["tabular-nums"] }}>{confidence}%</Text>
         </View>
-        <Slider style={{ marginTop: 10 }} minimumValue={50} maximumValue={99} step={1} value={confidence}
+        <Slider style={{ marginTop: 10 }} minimumValue={33} maximumValue={99} step={1} value={confidence}
           onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} maximumTrackTintColor={C.card2} thumbTintColor={C.fg} />
       </View>
 
