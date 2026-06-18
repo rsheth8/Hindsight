@@ -1,8 +1,15 @@
 /**
  * Point-in-time setup metrics derived purely from the price history the player
- * can see — no look-ahead, no survivorship problem. These are the honest clues.
+ * can see — strictly no look-ahead (nothing past the decision date feeds these).
+ *
+ * NOTE: these clues do NOT remove survivorship bias. The live universe is today's
+ * liquid large-caps (see universe.ts), so every name survived to the present and
+ * raw base rates skew upward. We counter that at *selection* time by balancing the
+ * forward-outcome class across A/B/C (see daily.ts), not here.
  */
 import type { SetupMetric } from "./types";
+
+const TRADING_DAYS_MONTH = 21;
 
 export interface Bar {
   date: string;
@@ -57,9 +64,11 @@ export function computeMetrics(history: Bar[]): SetupMetric[] {
   const aboveMa = ((last / ma50 - 1) * 100);
 
   const fmt = (x: number, sign = true) => `${sign && x > 0 ? "+" : ""}${x.toFixed(1)}%`;
+  // Label the return by how much history is actually visible (blind replay truncates it).
+  const months = Math.max(1, Math.round((history.length - 1) / TRADING_DAYS_MONTH));
 
   return [
-    { label: "6-month return", value: fmt(ret6m), hint: "Price change over the window you can see." },
+    { label: `${months}-month return`, value: fmt(ret6m), hint: "Total return over the window you can see." },
     { label: "Annualized volatility", value: `${vol.toFixed(0)}%`, hint: "How jumpy the stock has been — higher = wider outcomes." },
     { label: "Max drawdown (window)", value: fmt(dd), hint: "Worst peak-to-trough drop inside the window." },
     { label: "From window high", value: fmt(fromHigh), hint: "Distance below the highest close shown." },
