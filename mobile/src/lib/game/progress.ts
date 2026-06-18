@@ -10,6 +10,7 @@
 import { C } from "../../theme";
 import type { JournalEntry } from "../profile";
 import type { DailyProblem, GradeResult } from "./types";
+import { calibrationCredit, calibrationSkill } from "./calibration";
 
 export type VerdictTone = "accent" | "warn" | "bad" | "fg";
 
@@ -22,7 +23,7 @@ export function verdictToneColor(tone: VerdictTone): string {
 }
 
 export function verdict(result: Pick<GradeResult, "correct" | "earned" | "brier" | "reasoning">): Verdict {
-  const calib = 1 - result.brier; // 0–1, higher = better-sized confidence
+  const calib = calibrationCredit(result.brier); // 0–1, higher = better-sized confidence
   if (result.earned) {
     return { badge: "💎 EARNED", tone: "accent", line: "Right, well-reasoned, and properly confident. This is the kind of win that compounds in real life." };
   }
@@ -72,7 +73,7 @@ export interface SkillTrend {
   headline: string;
 }
 
-const calibScore = (brier: number) => Math.round(clamp01((0.25 - brier) / 0.25) * 100);
+const calibScore = (brier: number) => Math.round(calibrationSkill(brier) * 100);
 
 export function skillTrend(history: JournalEntry[]): SkillTrend {
   const chrono = [...history].reverse(); // stored newest-first → oldest-first
@@ -161,5 +162,3 @@ export function insights(history: JournalEntry[]): Insight[] {
 
   return out.slice(0, 3);
 }
-
-function clamp01(x: number) { return Math.max(0, Math.min(1, x)); }

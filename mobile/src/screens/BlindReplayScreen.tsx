@@ -240,7 +240,7 @@ export function BlindReplayScreen({ onExit }: { onExit: () => void }) {
 
       <View style={{ backgroundColor: C.card, borderRadius: 18, padding: 16, marginTop: 16 }}>
         <Text style={{ color: C.muted }}>Confidence: {confidence}%</Text>
-        <Slider minimumValue={50} maximumValue={99} value={confidence} onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} />
+        <Slider minimumValue={33} maximumValue={99} value={confidence} onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} />
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>

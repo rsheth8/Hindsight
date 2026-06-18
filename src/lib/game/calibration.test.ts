@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { brierFor, summarize } from "./calibration";
+import {
+  brierFor,
+  calibrationCredit,
+  calibrationSkill,
+  GUESS_CONFIDENCE,
+  REFERENCE_BRIER,
+  summarize,
+} from "./calibration";
 
 describe("calibration", () => {
   it("scores perfect calibration at 0 brier", () => {
@@ -23,7 +30,7 @@ describe("calibration", () => {
   });
 
   it("reaches well-calibrated with enough good calls", () => {
-    const calls = Array.from({ length: 12 }, () => ({ confidence: 0.75, correct: true }));
+    const calls = Array.from({ length: 12 }, () => ({ confidence: 0.85, correct: true }));
     const s = summarize(calls);
     expect(s.readiness.label).toBe("Well-calibrated");
     expect(s.brier).toBeLessThan(0.1);
@@ -44,5 +51,24 @@ describe("calibration", () => {
     if (s.brier !== null && Math.abs(s.brier - 0.25) < 0.01) {
       expect(s.readiness.score).toBeLessThanOrEqual(5);
     }
+  });
+
+  it("uses the 3-outcome base rate as the no-skill reference", () => {
+    // a pure guess among 3 choices is right 1/3 of the time
+    expect(GUESS_CONFIDENCE).toBeCloseTo(1 / 3, 10);
+    // Brier of always forecasting the base rate = variance p(1-p) = 2/9
+    expect(REFERENCE_BRIER).toBeCloseTo(2 / 9, 10);
+  });
+
+  it("skill score is 1 at perfect, 0 at the guessing baseline", () => {
+    expect(calibrationSkill(0)).toBe(1);
+    expect(calibrationSkill(REFERENCE_BRIER)).toBeCloseTo(0, 10);
+    expect(calibrationSkill(1)).toBe(0); // clamped, never negative
+  });
+
+  it("rating credit is 1 at perfect, 0.5 at the guessing baseline", () => {
+    expect(calibrationCredit(0)).toBe(1);
+    expect(calibrationCredit(REFERENCE_BRIER)).toBeCloseTo(0.5, 10);
+    expect(calibrationCredit(2 * REFERENCE_BRIER)).toBeCloseTo(0, 10);
   });
 });

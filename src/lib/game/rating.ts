@@ -6,10 +6,14 @@
  *   E = 1 / (1 + 10^((D − R)/400))                             (expected score)
  *   R' = R + K·(S − E)
  *
+ * The calibration axis is `calibrationCredit(brier)` (shared with the readiness
+ * display): perfect → 1, a pure guess → 0.5, worse → 0.
+ *
  * The luck filter: a correct-but-poorly-reasoned call has its *upside* clamped
  * to ≈0 ("right for the wrong reasons — lucky, +0"), while a well-reasoned call
  * that didn't pay off in-window still banks reasoning credit.
  */
+import { calibrationCredit } from "./calibration";
 
 export const START_RATING = 1000;
 const D_FLOOR = 600;
@@ -39,8 +43,8 @@ export interface SkillInputs {
 /** Combined 0–1 skill score with the luck filter applied. */
 export function skillScore({ correct, brier, reasoning }: SkillInputs): number {
   const correctness = correct ? 1 : 0;
-  // Brier 0 → 1.0, 0.25 (coinflip) → 0.5, 1 → 0. Calibration credit.
-  const calibration = Math.max(0, 1 - brier * 2);
+  // Perfect → 1.0, a pure guess → 0.5, twice-as-bad → 0. Shared calibration credit.
+  const calibration = calibrationCredit(brier);
   let s = 0.15 * correctness + 0.45 * calibration + 0.4 * reasoning;
 
   // Luck filter: right but weak reasoning → clamp the upside toward break-even.

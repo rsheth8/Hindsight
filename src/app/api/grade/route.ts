@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDailyProblem } from "@/lib/game/daily";
 import { getPracticeProblem, type PracticeFocus } from "@/lib/game/practice";
 import { resolveBlindProblem } from "@/lib/game/blind-replay";
-import { brierFor } from "@/lib/game/calibration";
+import { brierFor, GUESS_CONFIDENCE } from "@/lib/game/calibration";
 import { updateRating } from "@/lib/game/rating";
 import { gradeReasoning, explainReveal, type Depth } from "@/lib/ai/grade";
 import { crowdForProblem, saveSubmission } from "@/lib/db/submissions";
@@ -50,7 +50,11 @@ export async function POST(req: Request) {
   if (!["A", "B", "C"].includes(choice)) {
     return NextResponse.json({ error: "Invalid choice" }, { status: 400 });
   }
-  const confidence = Math.max(0.5, Math.min(1, Number(body.confidence) || 0.5));
+  const rawConfidence = Number(body.confidence);
+  const confidence = Math.max(
+    GUESS_CONFIDENCE,
+    Math.min(1, Number.isFinite(rawConfidence) ? rawConfidence : GUESS_CONFIDENCE),
+  );
   const reasoning = String(body.reasoning ?? "").trim();
   if (!reasoning) {
     return NextResponse.json({ error: "Add at least one reasoning chip or note." }, { status: 400 });
