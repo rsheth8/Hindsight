@@ -31,7 +31,9 @@ runs Next 16; Vercel is simplest:
 
 - [ ] From the repo root: `vercel` (or connect the GitHub repo in the Vercel dashboard).
 - [ ] Set env vars on the host: `FMP_API_KEY`, `ANTHROPIC_API_KEY` *(optional — without
-      them it serves the fallback bank + heuristic grading)*.
+      them it serves the fallback bank + heuristic grading)*. Add **Vercel KV** (or Upstash
+      Redis) so crowd submissions persist — sets `KV_REST_API_URL` + `KV_REST_API_TOKEN`.
+- [ ] Set `NEXT_PUBLIC_APP_URL` to your deployed HTTPS URL (share cards + legal pages).
 - [ ] Note the HTTPS URL, e.g. `https://hindsight-api.vercel.app`.
 - [ ] Put that URL in `mobile/eas.json` →
       `build.production.env.EXPO_PUBLIC_API_BASE` (and `preview` too).
@@ -59,7 +61,8 @@ when prompted (`eas` walks you through it; needs your Apple login).
 - [ ] **Privacy:** "Data Not Collected" is accurate today — the profile lives only in
       on-device AsyncStorage, there are no accounts, ads, or third-party analytics. (If you
       later add cloud sync/accounts, update this.)
-- [ ] **Support URL** + **Privacy Policy URL** (Apple requires both; a simple page is fine).
+- [ ] **Support URL** + **Privacy Policy URL** — served at `/support` and `/privacy` on
+      your deployed web app (e.g. `https://your-app.vercel.app/privacy`).
 
 ## 5. Submit
 
@@ -111,6 +114,7 @@ confidence was earned.
 - Keys stay **server-side**. The app only talks to your backend over HTTPS.
 - Grade the **decision, not the outcome** — the rating weighting and luck filter live in
   `src/lib/game/rating.ts` (shared by web + mobile).
-- The crowd split is **illustrative** until real telemetry exists; it's labelled as such.
+- The crowd split is **real** once enough players have answered; otherwise illustrative
+  and labelled. Production needs Vercel KV (`KV_REST_API_*` env vars).
 - The "real-money bridge" is a roadmap teaser — it's read-only coaching, never trade
   execution. Don't let copy drift toward advice.

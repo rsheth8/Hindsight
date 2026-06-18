@@ -51,7 +51,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid choice" }, { status: 400 });
   }
   const confidence = Math.max(0.5, Math.min(1, Number(body.confidence) || 0.5));
-  const reasoning = String(body.reasoning ?? "");
+  const reasoning = String(body.reasoning ?? "").trim();
+  if (!reasoning) {
+    return NextResponse.json({ error: "Add at least one reasoning chip or note." }, { status: 400 });
+  }
   const rating = Number.isFinite(body.rating) ? body.rating : 1000;
   const gradedCount = Number.isFinite(body.gradedCount) ? body.gradedCount : 0;
   const depth: Depth = body.depth ?? "learn";
