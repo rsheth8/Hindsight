@@ -7,7 +7,7 @@
  * raw base rates skew upward. We counter that at *selection* time by balancing the
  * forward-outcome class across A/B/C (see daily.ts), not here.
  */
-import type { SetupMetric } from "./types";
+import type { SetupMetric, SetupBand } from "./types";
 
 const TRADING_DAYS_MONTH = 21;
 
@@ -73,6 +73,45 @@ export function computeMetrics(history: Bar[]): SetupMetric[] {
     { label: "Max drawdown (window)", value: fmt(dd), hint: "Worst peak-to-trough drop inside the window." },
     { label: "From window high", value: fmt(fromHigh), hint: "Distance below the highest close shown." },
     { label: "Vs 50-day average", value: fmt(aboveMa), hint: "Above the trend line (momentum) or below it." },
+  ];
+}
+
+/**
+ * Qualitative "situation" bands derived purely from the visible price history —
+ * trend, volatility regime, and position vs the window high. Strictly no
+ * look-ahead (nothing past the decision date), and never the forward outcome, so
+ * these describe what the player can already see, just in plain language. They
+ * make the setup legible without adding any signal that leaks the answer.
+ */
+export function deriveSituationBands(history: Bar[]): SetupBand[] {
+  if (history.length < 3) return [];
+  const first = history[0].close;
+  const last = history[history.length - 1].close;
+  const high = Math.max(...history.map((b) => b.close));
+  const ret = pctReturn(first, last);
+  const vol = annualizedVol(history);
+  const fromHigh = pctReturn(high, last);
+  const vsMa = (last / sma(history, 50) - 1) * 100;
+
+  let trend: string;
+  if (ret > 15 && vsMa > 1) trend = "Strong uptrend";
+  else if (ret > 4) trend = "Grinding higher";
+  else if (ret < -15 && vsMa < -1) trend = "In a downtrend";
+  else if (ret < -4) trend = "Drifting lower";
+  else trend = "Rangebound / flat";
+
+  const volBand = vol < 22 ? "Calm" : vol < 40 ? "Choppy" : "Highly volatile";
+
+  let position: string;
+  if (fromHigh > -2) position = "Pushing new highs";
+  else if (fromHigh > -10) position = "Just off its highs";
+  else if (fromHigh > -25) position = "Well below its highs";
+  else position = "Deep in a drawdown";
+
+  return [
+    { label: "Trend", value: trend, hint: "The direction of the price over the window you can see." },
+    { label: "Volatility", value: volBand, hint: "How wide the swings have been — wider means more uncertain outcomes." },
+    { label: "Position", value: position, hint: "Where it sits relative to its highest close in the window." },
   ];
 }
 

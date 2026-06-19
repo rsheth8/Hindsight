@@ -1,6 +1,7 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { SparkChart } from "./SparkChart";
+import { BandsStrip, MetricsGrid } from "./SetupContext";
 import type { DailyProblem } from "../lib/game/types";
 import { C, F } from "../theme";
 
@@ -76,26 +77,22 @@ export function ProblemSetup({ problem, chartW }: { problem: DailyProblem; chart
   }
 
   return (
-    <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 16 }}>
-      <View style={{ paddingHorizontal: 4, paddingTop: 12, alignItems: "center" }}>
-        <SparkChart series={problem.series} width={chartW} />
-      </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", borderTopWidth: 1, borderTopColor: C.border }}>
-        {problem.metrics.map((m, i) => (
-          <View key={m.label} style={{ width: "50%", paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: i > 1 ? 1 : 0, borderRightWidth: i % 2 === 0 ? 1 : 0, borderColor: C.border }}>
-            <Text style={{ fontSize: 11, color: C.muted, fontFamily: F.body }}>{m.label}</Text>
-            <Text style={{ fontSize: 16, color: C.fg, fontFamily: F.mono, fontVariant: ["tabular-nums"] }}>{m.value}</Text>
-          </View>
-        ))}
-      </View>
-      {problem.type === "calibration-bet" && problem.baseRateHint && (
-        <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Text style={{ fontSize: 13, color: C.muted, fontFamily: F.body }}>
-            <Text style={{ color: C.fg, fontFamily: F.bodySemi }}>Base rate: </Text>
-            {problem.baseRateHint}
-          </Text>
+    <>
+      <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, overflow: "hidden", marginTop: 16 }}>
+        <View style={{ paddingHorizontal: 4, paddingTop: 12, alignItems: "center" }}>
+          <SparkChart series={problem.series} width={chartW} />
         </View>
-      )}
-    </View>
+        <MetricsGrid metrics={problem.metrics} />
+        {problem.type === "calibration-bet" && problem.baseRateHint && (
+          <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 13, color: C.muted, fontFamily: F.body }}>
+              <Text style={{ color: C.fg, fontFamily: F.bodySemi }}>Base rate: </Text>
+              {problem.baseRateHint}
+            </Text>
+          </View>
+        )}
+      </View>
+      <BandsStrip bands={problem.bands} />
+    </>
   );
 }

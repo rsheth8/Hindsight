@@ -47,7 +47,23 @@ export interface Pricepoint {
 export interface SetupMetric {
   label: string;
   value: string;
-  /** Optional plain-language hint shown on the reveal, not before. */
+  /** Optional plain-language hint — surfaced on tap, both before and on the reveal. */
+  hint?: string;
+}
+
+/**
+ * A qualitative "situation" chip giving the player context to reason with —
+ * trend/volatility/position (price-derived, look-ahead-safe), sector, and
+ * point-in-time fundamentals as QUALITATIVE bands (e.g. "premium valuation",
+ * "revenue decelerating"). Deliberately non-numeric so it can't be reverse-looked-up
+ * to a ticker+date, and never derived from the forward outcome.
+ */
+export interface SetupBand {
+  /** Short category, e.g. "Trend", "Valuation", "Sector". */
+  label: string;
+  /** Qualitative read, e.g. "Strong uptrend", "Premium vs its own history". */
+  value: string;
+  /** Optional plain-language hint shown on tap. */
   hint?: string;
 }
 
@@ -66,6 +82,9 @@ export interface DailyProblem {
   /** anonymized series the player sees (history up to the decision date) */
   series: PricepointLite[];
   metrics: SetupMetric[];
+  /** Qualitative context chips (trend, sector, fundamentals) — gives the player
+   *  enough to reason without revealing the ticker. Optional for older payloads. */
+  bands?: SetupBand[];
   prompt: string;
   choices: Choice[];
   /** how far forward the judgment looks, in trading days, for display */

@@ -1,5 +1,6 @@
 "use client";
 import { SparkChart } from "./SparkChart";
+import { BandsStrip, MetricsGrid } from "./SetupContext";
 import type { DailyProblem } from "@/lib/game/types";
 
 export function ProblemSetup({ problem }: { problem: DailyProblem }) {
@@ -74,24 +75,20 @@ export function ProblemSetup({ problem }: { problem: DailyProblem }) {
   }
 
   return (
-    <div className="card mt-4 overflow-hidden">
-      <div className="px-2 pt-2">
-        <SparkChart series={problem.series} />
-      </div>
-      <div className="grid grid-cols-2 gap-px bg-[var(--border)]">
-        {problem.metrics.map((m) => (
-          <div key={m.label} className="bg-[var(--card)] px-4 py-2.5">
-            <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
-            <div className="tnum text-base font-semibold">{m.value}</div>
-          </div>
-        ))}
-      </div>
-      {problem.type === "calibration-bet" && problem.baseRateHint && (
-        <div className="border-t border-[var(--border)] px-4 py-3 text-[13px] text-[var(--muted)]">
-          <span className="font-semibold text-[var(--fg)]">Base rate: </span>
-          {problem.baseRateHint}
+    <>
+      <div className="card mt-4 overflow-hidden">
+        <div className="px-2 pt-2">
+          <SparkChart series={problem.series} />
         </div>
-      )}
-    </div>
+        <MetricsGrid metrics={problem.metrics} />
+        {problem.type === "calibration-bet" && problem.baseRateHint && (
+          <div className="border-t border-[var(--border)] px-4 py-3 text-[13px] text-[var(--muted)]">
+            <span className="font-semibold text-[var(--fg)]">Base rate: </span>
+            {problem.baseRateHint}
+          </div>
+        )}
+      </div>
+      <BandsStrip bands={problem.bands} />
+    </>
   );
 }

@@ -4,9 +4,9 @@
  * the UI) but shaped like real setups, with honest computed metrics + a real
  * forward outcome baked in.
  */
-import { computeMetrics, estimateDifficulty, type Bar } from "./metrics";
+import { computeMetrics, deriveSituationBands, estimateDifficulty, type Bar } from "./metrics";
 import { rng } from "./seed";
-import type { ChoiceId, PricepointLite, SolvedProblem } from "./types";
+import type { ChoiceId, PricepointLite, SetupBand, SolvedProblem } from "./types";
 
 type BankEntry = Omit<SolvedProblem, "id" | "date" | "crowd" | "live">;
 
@@ -55,6 +55,9 @@ function makeEntry(opts: {
   histVol: number;
   fwdDrift: number;
   fwdVol: number;
+  /** Qualitative context for the demo (illustrative — the bank is synthetic). */
+  sector?: string;
+  fundamentals?: SetupBand[];
 }): BankEntry {
   const all = genBars(opts.seed, opts.histDrift, opts.histVol, HISTORY + FORWARD + 1);
   const history = all.slice(0, HISTORY + 1);
@@ -65,11 +68,17 @@ function makeEntry(opts: {
   const forwardPct = (resolveBar.close / decisionBar.close - 1) * 100;
   const base = history[0].close;
   const metrics = computeMetrics(history);
+  const bands: SetupBand[] = [
+    ...deriveSituationBands(history),
+    ...(opts.sector ? [{ label: "Sector", value: opts.sector, hint: "What the business does — sectors behave differently in the same market." }] : []),
+    ...(opts.fundamentals ?? []),
+  ];
 
   return {
     type: "read-the-setup",
     series: indexSeries(history, base, 0),
     metrics,
+    bands,
     prompt: PROMPT,
     choices: CHOICES,
     horizonLabel: HORIZON,
@@ -92,16 +101,16 @@ function makeEntry(opts: {
 // used when no FMP key is set, and always flagged `live: false` in the UI.
 export const FALLBACK_BANK: BankEntry[] = [
   // A — Gained more than 10%
-  makeEntry({ ticker: "DEMO1", company: "Northwind Industrials", seed: 101, histDrift: 0.004, histVol: 0.012, fwdDrift: 0.0035, fwdVol: 0.010 }),
-  makeEntry({ ticker: "DEMO4", company: "Meridian Energy", seed: 404, histDrift: 0.002, histVol: 0.018, fwdDrift: 0.004, fwdVol: 0.012 }),
-  makeEntry({ ticker: "DEMO7", company: "Atlas Semiconductors", seed: 707, histDrift: 0.009, histVol: 0.028, fwdDrift: 0.005, fwdVol: 0.014 }),
+  makeEntry({ ticker: "DEMO1", company: "Northwind Industrials", seed: 101, histDrift: 0.004, histVol: 0.012, fwdDrift: 0.0035, fwdVol: 0.010, sector: "Industrials", fundamentals: [{ label: "Revenue", value: "Growing steadily" }] }),
+  makeEntry({ ticker: "DEMO4", company: "Meridian Energy", seed: 404, histDrift: 0.002, histVol: 0.018, fwdDrift: 0.004, fwdVol: 0.012, sector: "Energy", fundamentals: [{ label: "Profitability", value: "Margins expanding" }] }),
+  makeEntry({ ticker: "DEMO7", company: "Atlas Semiconductors", seed: 707, histDrift: 0.009, histVol: 0.028, fwdDrift: 0.005, fwdVol: 0.014, sector: "Technology", fundamentals: [{ label: "Revenue", value: "Growing fast" }] }),
   // B — Stayed within ±10% (small drift, low forward vol)
-  makeEntry({ ticker: "DEMO3", company: "Harbor Retail", seed: 303, histDrift: -0.003, histVol: 0.015, fwdDrift: 0.0008, fwdVol: 0.007 }),
-  makeEntry({ ticker: "DEMO6", company: "Sterling Financial", seed: 606, histDrift: 0.0015, histVol: 0.011, fwdDrift: 0.0003, fwdVol: 0.006 }),
-  makeEntry({ ticker: "DEMO9", company: "Ironclad Mining", seed: 909, histDrift: -0.006, histVol: 0.034, fwdDrift: -0.0006, fwdVol: 0.008 }),
-  makeEntry({ ticker: "DEMO10", company: "Summit Cloud", seed: 1010, histDrift: 0.008, histVol: 0.022, fwdDrift: 0.0010, fwdVol: 0.008 }),
+  makeEntry({ ticker: "DEMO3", company: "Harbor Retail", seed: 303, histDrift: -0.003, histVol: 0.015, fwdDrift: 0.0008, fwdVol: 0.007, sector: "Consumer", fundamentals: [{ label: "Revenue", value: "Roughly flat" }] }),
+  makeEntry({ ticker: "DEMO6", company: "Sterling Financial", seed: 606, histDrift: 0.0015, histVol: 0.011, fwdDrift: 0.0003, fwdVol: 0.006, sector: "Financials", fundamentals: [{ label: "Valuation", value: "In line with peers" }] }),
+  makeEntry({ ticker: "DEMO9", company: "Ironclad Mining", seed: 909, histDrift: -0.006, histVol: 0.034, fwdDrift: -0.0006, fwdVol: 0.008, sector: "Materials", fundamentals: [{ label: "Revenue", value: "Cyclical / lumpy" }] }),
+  makeEntry({ ticker: "DEMO10", company: "Summit Cloud", seed: 1010, histDrift: 0.008, histVol: 0.022, fwdDrift: 0.0010, fwdVol: 0.008, sector: "Technology", fundamentals: [{ label: "Revenue", value: "Growing fast" }] }),
   // C — Fell more than 10%
-  makeEntry({ ticker: "DEMO2", company: "Cascade Software", seed: 202, histDrift: 0.006, histVol: 0.02, fwdDrift: -0.004, fwdVol: 0.018 }),
-  makeEntry({ ticker: "DEMO5", company: "Vertex Biotech", seed: 505, histDrift: 0.008, histVol: 0.03, fwdDrift: -0.005, fwdVol: 0.022 }),
-  makeEntry({ ticker: "DEMO8", company: "Volta Pharmaceuticals", seed: 808, histDrift: 0.01, histVol: 0.038, fwdDrift: -0.0035, fwdVol: 0.020 }),
+  makeEntry({ ticker: "DEMO2", company: "Cascade Software", seed: 202, histDrift: 0.006, histVol: 0.02, fwdDrift: -0.004, fwdVol: 0.018, sector: "Technology", fundamentals: [{ label: "Profitability", value: "Margins compressing" }] }),
+  makeEntry({ ticker: "DEMO5", company: "Vertex Biotech", seed: 505, histDrift: 0.008, histVol: 0.03, fwdDrift: -0.005, fwdVol: 0.022, sector: "Healthcare", fundamentals: [{ label: "Profile", value: "Pre-profit, binary" }] }),
+  makeEntry({ ticker: "DEMO8", company: "Volta Pharmaceuticals", seed: 808, histDrift: 0.01, histVol: 0.038, fwdDrift: -0.0035, fwdVol: 0.020, sector: "Healthcare", fundamentals: [{ label: "Revenue", value: "Growing steadily" }] }),
 ];

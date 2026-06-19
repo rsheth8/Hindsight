@@ -620,7 +620,7 @@ function DuelReveal({ match, you, opponent, problem, chartW, onRematch, onExit }
           </View>
           {problem && (
             <View style={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 12, alignItems: "center" }}>
-              <SparkChart series={problem.series} continuation={reveal.continuation} width={chartW} />
+              <SparkChart series={problem.series} continuation={reveal.continuation} width={chartW} forwardReturnPct={reveal.forwardReturnPct} />
             </View>
           )}
         </View>

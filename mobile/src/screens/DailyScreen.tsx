@@ -12,6 +12,7 @@ import { ScoreRing } from "../components/ScoreRing";
 import { CalibrationBar, calibrationPosition } from "../components/CalibrationBar";
 import { Rise, Pop } from "../components/Animate";
 import { Flame, Freeze } from "../components/Glyph";
+import { BandsStrip, MetricsGrid } from "../components/SetupContext";
 import { ShareResultCard, shareRow } from "../components/ShareResultCard";
 import { useProfile, hasPlayed, type JournalEntry, type JournalSnapshot } from "../lib/profile";
 import { fetchDaily, gradeSubmission } from "../lib/api";
@@ -165,15 +166,10 @@ export function DailyScreen({ onNavigate }: { onNavigate?: (tab: NavDest) => voi
         <View style={{ paddingHorizontal: 4, paddingTop: 8, alignItems: "center" }}>
           <SparkChart series={problem.series} width={chartW} />
         </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", borderTopWidth: 1, borderTopColor: C.border }}>
-          {problem.metrics.map((m, i) => (
-            <View key={m.label} style={{ width: "50%", paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: i > 1 ? 1 : 0, borderRightWidth: i % 2 === 0 ? 1 : 0, borderColor: C.border }}>
-              <Text style={{ fontSize: 11, color: C.muted }}>{m.label}</Text>
-              <Text style={{ fontSize: 16, fontWeight: "600", color: C.fg, fontVariant: ["tabular-nums"] }}>{m.value}</Text>
-            </View>
-          ))}
-        </View>
+        <MetricsGrid metrics={problem.metrics} />
       </View>
+
+      <BandsStrip bands={problem.bands} />
 
       <Text style={{ marginTop: 20, fontSize: 16, color: C.fg, fontFamily: F.bodySemi }}>{problem.prompt}</Text>
 
@@ -209,9 +205,12 @@ export function DailyScreen({ onNavigate }: { onNavigate?: (tab: NavDest) => voi
         <Slider style={{ marginTop: 10 }} minimumValue={33} maximumValue={99} step={1} value={confidence}
           onValueChange={(v) => setConfidence(Math.round(v))} minimumTrackTintColor={C.accent} maximumTrackTintColor={C.card2} thumbTintColor={C.fg} />
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-          <Text style={{ fontSize: 10, color: C.muted2 }}>33% · pure guess</Text>
-          <Text style={{ fontSize: 10, color: C.muted2 }}>99% · certain</Text>
+          <Text style={{ fontSize: 10, color: C.muted2, fontFamily: F.body }}>33% · pure guess</Text>
+          <Text style={{ fontSize: 10, color: C.muted2, fontFamily: F.body }}>99% · certain</Text>
         </View>
+        <Text style={{ marginTop: 12, fontSize: 11, lineHeight: 16, color: C.muted2, fontFamily: F.body }}>
+          You won&apos;t have everything — that&apos;s the point. Set your confidence to how sure you honestly are; you&apos;re scored on calibration, not on being right.
+        </Text>
       </View>
 
       <View style={{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16, marginTop: 16 }}>
@@ -407,7 +406,7 @@ function Reveal({ problem, result, ratingFrom, streak, choice, confidence, depth
           </View>
         </View>
         <View style={{ paddingHorizontal: 4, paddingTop: 8, alignItems: "center" }}>
-          <SparkChart series={problem.series} continuation={r.continuation} width={chartW} />
+          <SparkChart series={problem.series} continuation={r.continuation} width={chartW} decisionDate={r.decisionDate} resolveDate={r.resolveDate} forwardReturnPct={r.forwardReturnPct} />
         </View>
         <Text style={{ paddingHorizontal: 16, paddingBottom: 12, fontSize: 11, color: C.muted2 }}>
           {fmtDate(r.decisionDate)} → {fmtDate(r.resolveDate)} · correct: <Text style={{ fontWeight: "700", color: C.fg }}>{problem.choices.find((c) => c.id === result.answer)?.label}</Text>

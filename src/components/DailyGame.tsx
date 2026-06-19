@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { SparkChart } from "./SparkChart";
+import { BandsStrip, MetricsGrid } from "./SetupContext";
 import { Confetti } from "./Confetti";
 import { CountUp } from "./CountUp";
 import { ShareCard } from "./ShareCard";
@@ -185,15 +186,10 @@ export function DailyGame() {
         <div className="px-2 pt-2">
           <SparkChart series={problem.series} />
         </div>
-        <div className="grid grid-cols-2 gap-px bg-[var(--border)]">
-          {problem.metrics.map((m) => (
-            <div key={m.label} className="bg-[var(--card)] px-4 py-2.5">
-              <div className="text-[11px] text-[var(--muted)]">{m.label}</div>
-              <div className="tnum text-base font-semibold">{m.value}</div>
-            </div>
-          ))}
-        </div>
+        <MetricsGrid metrics={problem.metrics} />
       </div>
+
+      <BandsStrip bands={problem.bands} />
 
       <h2 className="mt-5 text-[15px] font-semibold text-[var(--fg)]">{problem.prompt}</h2>
       <div className="mt-3 flex flex-col gap-2">
@@ -239,6 +235,9 @@ export function DailyGame() {
           <span>33% · pure guess</span>
           <span>99% · certain</span>
         </div>
+        <p className="mt-3 text-[11px] leading-snug text-[var(--muted-2)]">
+          You won&apos;t have everything — that&apos;s the point. Set your confidence to how sure you honestly are; you&apos;re scored on calibration, not on being right.
+        </p>
       </div>
 
       <div className="card mt-4 px-4 py-4">

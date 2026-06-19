@@ -6,9 +6,9 @@
 import { fmpFetch, hasFmpApiKey } from "@/lib/fmp/client";
 import { hashSeed, pick, rng, todayKey } from "./seed";
 import { UNIVERSE } from "./universe";
-import { computeMetrics, estimateDifficulty, type Bar } from "./metrics";
+import { computeMetrics, deriveSituationBands, estimateDifficulty, type Bar } from "./metrics";
 import { FALLBACK_BANK } from "./fallback";
-import type { ChoiceId, PricepointLite, SolvedProblem } from "./types";
+import type { ChoiceId, PricepointLite, SetupBand, SolvedProblem } from "./types";
 
 const HISTORY_DAYS = 126; // ~6 months of trading days shown
 const FORWARD_DAYS = 63; // ~3 months forward to resolve
@@ -60,6 +60,62 @@ function syntheticCrowd(r: () => number, leaning: ChoiceId): Record<ChoiceId, nu
     B: Math.round((base.B / total) * 100),
     C: Math.round((base.C / total) * 100),
   };
+}
+
+/**
+ * Best-effort point-in-time fundamental bands for a live problem. Strictly
+ * look-ahead-safe: only statements dated *before* the decision date feed the
+ * trend reads, and everything is qualitative (no figures that could be reversed
+ * to a ticker+date). Any failure → fewer/no bands; the problem still builds.
+ */
+async function fetchFundamentalBands(ticker: string, asOf: string): Promise<SetupBand[]> {
+  const bands: SetupBand[] = [];
+
+  try {
+    const profile = await fmpFetch<{ sector?: string }[]>("/profile", { symbol: ticker });
+    const sector = profile?.[0]?.sector;
+    if (sector) bands.push({ label: "Sector", value: sector, hint: "What the business does — sectors behave differently in the same market." });
+  } catch {
+    /* sector is optional */
+  }
+
+  try {
+    // limit ~40 quarters (~10y) so decision dates well in the past still find priors;
+    // older than that → no fundamentals (graceful, situation bands still show).
+    const stmts = await fmpFetch<
+      { date: string; fillingDate?: string; acceptedDate?: string; revenue?: number; grossProfit?: number }[]
+    >("/income-statement", { symbol: ticker, period: "quarter", limit: 40 });
+    // Gate on when the statement became PUBLIC (filing/accepted date), not the
+    // fiscal period end — a quarter ending Mar 31 isn't known until it's filed
+    // weeks later, so filtering on the period date would leak look-ahead data.
+    const knownDate = (s: { date: string; fillingDate?: string; acceptedDate?: string }) =>
+      (s.acceptedDate ?? s.fillingDate ?? s.date).slice(0, 10);
+    const prior = (stmts ?? [])
+      .filter((s) => typeof s.date === "string" && knownDate(s) < asOf)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    if (prior.length >= 5) {
+      const latest = prior[0];
+      const yearAgo = prior[4]; // ~4 quarters back → year-over-year
+      if (latest.revenue && yearAgo.revenue) {
+        const g = (latest.revenue / yearAgo.revenue - 1) * 100;
+        const value = g > 25 ? "Growing fast" : g > 8 ? "Growing steadily" : g > -2 ? "Roughly flat" : "Shrinking";
+        bands.push({ label: "Revenue", value, hint: "Year-over-year sales trend as of the decision date." });
+      }
+      const margin = (s: { revenue?: number; grossProfit?: number }) =>
+        s.grossProfit && s.revenue ? s.grossProfit / s.revenue : null;
+      const ml = margin(latest);
+      const my = margin(yearAgo);
+      if (ml != null && my != null) {
+        const d = (ml - my) * 100;
+        const value = d > 1.5 ? "Margins expanding" : d < -1.5 ? "Margins compressing" : "Margins steady";
+        bands.push({ label: "Profitability", value, hint: "Direction of gross margin over the prior year." });
+      }
+    }
+  } catch {
+    /* fundamentals are optional */
+  }
+
+  return bands;
 }
 
 async function buildLive(dateKey: string): Promise<SolvedProblem> {
@@ -116,12 +172,23 @@ async function buildLive(dateKey: string): Promise<SolvedProblem> {
   const trailingPct = (decisionBar.close / history[0].close - 1) * 100;
   const crowd = syntheticCrowd(r, classify(trailingPct));
 
+  // Context to reason with: price-derived situation bands (always) + best-effort
+  // point-in-time fundamentals (graceful — empty if the API can't serve them).
+  const situationBands = deriveSituationBands(history);
+  let fundamentalBands: SetupBand[] = [];
+  try {
+    fundamentalBands = await fetchFundamentalBands(ticker, decisionBar.date);
+  } catch {
+    /* bands are best-effort */
+  }
+
   return {
     id: `live-${dateKey}-${ticker}`,
     date: dateKey,
     type: "read-the-setup",
     series: indexSeries(history, base, 0),
     metrics,
+    bands: [...situationBands, ...fundamentalBands],
     prompt: PROMPT,
     choices: CHOICES,
     horizonLabel: HORIZON,

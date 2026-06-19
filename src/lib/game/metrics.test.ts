@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { computeMetrics, estimateDifficulty, type Bar } from "./metrics";
+import { computeMetrics, deriveSituationBands, estimateDifficulty, type Bar } from "./metrics";
+
+describe("deriveSituationBands", () => {
+  const rising = Array.from({ length: 60 }, (_, i) => ({ date: `2024-01-${String(i + 1).padStart(2, "0")}`, close: 100 + i * 0.5 }));
+  const flat = Array.from({ length: 60 }, (_, i) => ({ date: `2024-01-${String(i + 1).padStart(2, "0")}`, close: 100 }));
+
+  it("returns Trend / Volatility / Position bands", () => {
+    expect(deriveSituationBands(rising).map((b) => b.label)).toEqual(["Trend", "Volatility", "Position"]);
+  });
+  it("reads a steady rise as an uptrend pushing highs", () => {
+    const bands = deriveSituationBands(rising);
+    expect(bands[0].value).toMatch(/uptrend|higher/i);
+    expect(bands[2].value).toMatch(/highs/i);
+  });
+  it("reads a flat series as rangebound and calm", () => {
+    const bands = deriveSituationBands(flat);
+    expect(bands[0].value).toMatch(/rangebound|flat/i);
+    expect(bands[1].value).toBe("Calm");
+  });
+  it("is deterministic — never derives from the future", () => {
+    expect(deriveSituationBands(rising)).toEqual(deriveSituationBands(rising));
+  });
+});
 
 function flatBars(n: number, price = 100): Bar[] {
   return Array.from({ length: n }, (_, i) => ({ date: `2024-01-${String(i + 1).padStart(2, "0")}`, close: price }));

@@ -299,7 +299,7 @@ export function PracticeScreen({ onBlindReplay, onLearn }: { onBlindReplay?: () 
             </View>
           </View>
           <View style={{ paddingHorizontal: 4, paddingTop: 8, alignItems: "center" }}>
-            <SparkChart series={problem.series} continuation={r.continuation} width={chartW} />
+            <SparkChart series={problem.series} continuation={r.continuation} width={chartW} decisionDate={r.decisionDate} resolveDate={r.resolveDate} forwardReturnPct={r.forwardReturnPct} />
           </View>
           <Text style={{ paddingHorizontal: 16, paddingBottom: 12, fontSize: 11, color: C.muted2 }}>
             correct: <Text style={{ fontWeight: "700", color: C.fg }}>{correctLabel}</Text>
