@@ -1,20 +1,23 @@
-# Hindsight
-
 <p align="center">
-  <img src="docs/brand/logo.png" width="168" alt="Hindsight">
+  <img src="docs/brand/logo.png" width="128" alt="Hindsight">
 </p>
 
+<h1 align="center">Hindsight</h1>
 
-Daily puzzle that grades how well you think about a market call — calibration and reasoning, not luck. Chess.com energy, Wordle share card, no buy/sell advice.
+<p align="center">
+  Wordle energy. Chess.com grading. Luck doesn’t get you the rating.
+</p>
 
-| | |
-| --- | --- |
-| **Author** | [Rahil Sheth](https://github.com/rsheth8) |
-| **Live** | [hindsight-one.vercel.app](https://hindsight-one.vercel.app) |
-| **Stack** | Next.js, TypeScript, Tailwind, Anthropic (optional), FMP (optional), Expo iOS client |
-| **Status** | Educational. Runs with zero keys via a fallback problem bank and heuristic grader. |
+<p align="center">
+  <a href="https://hindsight-one.vercel.app">Live</a>&nbsp;·&nbsp;<a href="https://github.com/rsheth8/Hindsight">Source</a>&nbsp;·&nbsp;<a href="CONTRIBUTING.md">Run locally</a>
+</p>
 
-> Never investment advice. It grades your *decision*, not whether you got rich.
+<p align="center">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-black?style=flat-square&logo=nextdotjs">
+  <img alt="Education" src="https://img.shields.io/badge/not-financial%20advice-6b5c48?style=flat-square">
+</p>
+
+<p align="center"><sub>Runs with zero API keys. Optional FMP + Anthropic for the full loop.</sub></p>
 
 ---
 
