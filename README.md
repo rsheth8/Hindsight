@@ -1,5 +1,10 @@
 # Hindsight
 
+<p align="center">
+  <img src="docs/brand/logo.png" width="168" alt="Hindsight">
+</p>
+
+
 Daily puzzle that grades how well you think about a market call — calibration and reasoning, not luck. Chess.com energy, Wordle share card, no buy/sell advice.
 
 | | |
@@ -201,3 +206,10 @@ See `docs/TESTING.md` for the full testing regime and `docs/app-store-checklist.
 - **Educational-only guardrails.** The system never generates buy/sell advice in UI copy or AI prompts — this is enforced as a standing rule in `CLAUDE.md`, not just documentation.
 - **Mobile duplication, not sharing.** The pure game logic in `src/lib/game/` is copied (not symlinked or packaged) into `mobile/src/lib/game/` so the iOS app can ship independently; `scripts/check-game-sync.sh` checks the two haven't drifted, and it's part of `npm run test:ci`.
 - **Server-authoritative grading.** The client never receives the answer before grading — `POST /api/grade` re-derives (or re-fetches) the same seeded problem server-side before comparing it to the submitted choice, so the puzzle can't be solved by reading client-side state.
+
+## Contributing
+
+PRs and issues welcome. How to run tests, env vars, and the expected layout: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Don't commit `.env`, API keys, or personal recordings.
+
