@@ -1,8 +1,15 @@
 # Hindsight
 
-**"Chess.com for investing judgment" — a daily puzzle that grades how well you think about a market call, not whether you got lucky.**
+Daily puzzle that grades how well you think about a market call — calibration and reasoning, not luck. Chess.com energy, Wordle share card, no buy/sell advice.
 
-> Educational only. Hindsight never gives buy/sell advice. It grades your *decision*, not the outcome.
+| | |
+| --- | --- |
+| **Author** | [Rahil Sheth](https://github.com/rsheth8) |
+| **Live** | [hindsight-one.vercel.app](https://hindsight-one.vercel.app) |
+| **Stack** | Next.js, TypeScript, Tailwind, Anthropic (optional), FMP (optional), Expo iOS client |
+| **Status** | Educational. Runs with zero keys via a fallback problem bank and heuristic grader. |
+
+> Never investment advice. It grades your *decision*, not whether you got rich.
 
 ---
 
